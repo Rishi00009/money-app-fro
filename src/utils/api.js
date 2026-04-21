@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API = axios.create({
   // Make sure this matches your backend port
-  baseURL: 'http://localhost:5000/api', 
+  baseURL: 'https://money-app-back.onrender.com/api', 
 });
 
 // Request interceptor to attach the JWT token
