@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  /* BACKGROUNDS - Bright and Clean like the screenshot */
+  --bg-primary: #ffffff;    /* Pure White for the main background */
+  --bg-secondary: #f6fdf6;  /* Extremely soft mint for the balance card */
+  --bg-accent: #e0eee0;     /* Soft green-gray for secondary elements */
+
+  /* TEXT COLORS */
+  --text-main: #0a0e0c;     /* Very deep charcoal/green black for primary headings */
+  --text-dim: #7a867e;      /* Muted grayish-green for labels */
+  
+  /* BRAND COLORS (Accent) - Match the image's "Accounts" button */
+  --brand-color: #bef264;   /* Lime/Volt from your reference */
+  --brand-text: #000000;    /* Dark text to contrast with Lime */
+  --brand-shadow: rgba(190, 242, 100, 0.2);
+  
+  /* STATUS COLORS */
+  --success: #34d399;       /* Modern Green for Income */
+  --danger: #fb7185;        /* Rose Red for Spend */
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  /* Smooth color transitions when theme variables are updated */
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Inter', system-ui, sans-serif; /* Clean, modern font */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Global utility class for the balance card seen in the image */
+.volt-balance-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid rgba(0, 0, 0, 0.03); /* Subtle, high-end border */
+  border-radius: 3rem; /* Extra rounded corners from the image */
+}

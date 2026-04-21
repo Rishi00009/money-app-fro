@@ -1,0 +1,10 @@
+/* Add this to your App.css */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main) !important; /* Forces text to use the variable */
+}
+
+/* Ensure all inputs and buttons inherit the main text color */
+input, button, select, textarea {
+  color: var(--text-main);
+}
