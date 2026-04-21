@@ -20,7 +20,7 @@ const Login = () => {
 
     try {
       // 1. Call your backend login route
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
+      const res = await axios.post('https://money-app-back.onrender.com/api/auth/login', {
         username,
         password
       });

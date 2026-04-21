@@ -27,7 +27,7 @@ const Register = () => {
 
     try {
       // 1. Call the registration endpoint
-      const res = await axios.post('http://localhost:5000/api/auth/register', formData);
+      const res = await axios.post('https://money-app-back.onrender.com/api/auth/register', formData);
 
       // 2. Store the JWT token immediately so the user is logged in
       localStorage.setItem('token', res.data.token);

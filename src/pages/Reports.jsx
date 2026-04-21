@@ -29,7 +29,7 @@ const Reports = () => {
       const token = localStorage.getItem('token');
       
       // Construct the URL with query parameters
-      const baseUrl = "http://localhost:5000/api/transactions/download";
+      const baseUrl = "https://money-app-back.onrender.com/api/transactions/download";
       const downloadUrl = `${baseUrl}?from=${dateRange.from}&to=${dateRange.to}&token=${token}`;
       
       // Open in a new tab to trigger the browser download
