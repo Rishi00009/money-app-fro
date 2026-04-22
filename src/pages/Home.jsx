@@ -18,9 +18,9 @@ const Home = () => {
   const [totals, setTotals] = useState({ balance: 0, income: 0, spend: 0 });
   const [loading, setLoading] = useState(true);
 
-  // --- 1. Privacy & System States ---
+  // Privacy & System States
   const [isGhosted, setIsGhosted] = useState(() => localStorage.getItem('ghost-mode') === 'true');
-  const [showSensitive, setShowSensitive] = useState(false); // Local toggle to "peek" at numbers
+  const [showSensitive, setShowSensitive] = useState(false); 
 
   const getCycleRange = (startDay) => {
     const now = new Date();
@@ -57,7 +57,16 @@ const Home = () => {
     fetchTerminalData();
   }, [navigate]);
 
-  // Center Nav
+  // nav items array
+  const navItems = [
+    { id: 'profile', icon: <User size={24} />, path: '/profile', label: 'Profile' },
+    { id: 'history', icon: <History size={24} />, path: '/history', label: 'History' },
+    { id: 'add', icon: <Plus size={32} />, path: '/add', label: 'Add Entry' },
+    { id: 'settings', icon: <Settings size={24} />, path: '/settings', label: 'Settings' },
+    { id: 'reports', icon: <Bell size={24} />, path: '/reports', label: 'Reports' },
+  ];
+
+  // Logic to center the scroller
   useEffect(() => {
     if (scrollRef.current) {
       const container = scrollRef.current;
@@ -67,17 +76,26 @@ const Home = () => {
         container.scrollTo({ left: scrollPos });
       }
     }
-  }, []);
+  }, [activeIndex]);
 
-  const navItems = [
-    { id: 'profile', icon: <User size={24} />, path: '/profile', label: 'Profile' },
-    { id: 'history', icon: <History size={24} />, path: '/history', label: 'History' },
-    { id: 'add', icon: <Plus size={32} />, path: '/add', label: 'Add Entry' },
-    { id: 'settings', icon: <Settings size={24} />, path: '/settings', label: 'Settings' },
-    { id: 'reports', icon: <Bell size={24} />, path: '/reports', label: 'Reports' },
-  ];
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const container = scrollRef.current;
+    const centerPoint = container.scrollLeft + container.offsetWidth / 2;
+    let closestIndex = 0;
+    let minDistance = Infinity;
+    const items = container.querySelectorAll('.nav-scroll-item');
+    items.forEach((item, index) => {
+      const itemCenter = item.offsetLeft + item.offsetWidth / 2;
+      const distance = Math.abs(centerPoint - itemCenter);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = index;
+      }
+    });
+    if (closestIndex !== activeIndex) setActiveIndex(closestIndex);
+  };
 
-  // Helper to mask numbers
   const formatAmount = (num) => {
     if (isGhosted && !showSensitive) return "••••••";
     return `₹${num.toLocaleString()}`;
@@ -102,7 +120,7 @@ const Home = () => {
         </button>
       </header>
 
-      {/* BALANCE CARD with Privacy Toggle */}
+      {/* BALANCE CARD */}
       <section className="px-6 mb-8">
         <div 
           onClick={() => { if(isGhosted) { haptic.light(); setShowSensitive(!showSensitive); }}}
@@ -159,46 +177,65 @@ const Home = () => {
         )}
       </section>
 
-      {/* BOTTOM NAV BAR */}
-      <div className="fixed bottom-0 left-0 right-0 h-48 flex flex-col items-center justify-center z-50 pointer-events-none">
-        <div className="absolute bottom-16 w-20 h-20 rounded-[2.5rem] bg-[var(--brand-color)] shadow-2xl z-0 opacity-30" />
-        <div className="absolute bottom-14 w-[92%] h-24 bg-[var(--bg-secondary)]/80 backdrop-blur-3xl rounded-[3.2rem] border border-white/10 z-[-1] shadow-2xl" />
+      {/* FIXED BOTTOM NAV BAR AREA */}
+      <div className="fixed bottom-0 left-0 right-0 h-40 z-50">
+        {/* Visual elements container (does not block clicks) */}
+        <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+            <div className="absolute bottom-12 w-20 h-20 rounded-[2.5rem] bg-[var(--brand-color)] shadow-2xl z-0 opacity-20" />
+            <div className="absolute bottom-10 w-[92%] h-24 bg-[var(--bg-secondary)]/80 backdrop-blur-3xl rounded-[3.2rem] border border-white/10 z-[-1] shadow-2xl" />
+        </div>
 
+        {/* Scrollable container (ALLOWS CLICKS) */}
         <div 
           ref={scrollRef}
-          className="relative flex items-center overflow-x-auto no-scrollbar w-full h-full pointer-events-auto cursor-grab active:cursor-grabbing mb-6"
-          style={{ scrollSnapType: 'x mandatory', paddingLeft: 'calc(50% - 40px)', paddingRight: 'calc(50% - 40px)' }}
+          onScroll={handleScroll}
+          className="relative flex items-center overflow-x-auto no-scrollbar w-full h-full cursor-grab active:cursor-grabbing pb-10"
+          style={{ 
+            scrollSnapType: 'x mandatory', 
+            paddingLeft: 'calc(50% - 40px)', 
+            paddingRight: 'calc(50% - 40px)' 
+          }}
         >
           {navItems.map((item, index) => {
             const isCenter = activeIndex === index;
             return (
-              <motion.div
+              <div
                 key={item.id}
-                className="nav-scroll-item flex-shrink-0 w-20 flex flex-col items-center justify-center h-full relative"
+                className="nav-scroll-item flex-shrink-0 w-20 flex flex-col items-center justify-center h-full"
                 style={{ scrollSnapAlign: 'center' }}
-                onClick={() => { if (isCenter) navigate(item.path); }}
+                onClick={() => {
+                   if (isCenter) {
+                     haptic.light();
+                     navigate(item.path);
+                   }
+                }}
               >
                 <motion.div
-                  animate={{ scale: isCenter ? 1.2 : 0.6, opacity: isCenter ? 1 : 0.2 }}
-                  className={`flex items-center justify-center z-10 ${isCenter ? 'text-black' : 'text-[var(--text-main)]'}`}
+                  animate={{ 
+                    scale: isCenter ? 1.2 : 0.6, 
+                    opacity: isCenter ? 1 : 0.2,
+                    y: isCenter ? -10 : 0
+                  }}
+                  className={`flex items-center justify-center z-10 ${isCenter ? 'text-[var(--brand-color)]' : 'text-[var(--text-main)]'}`}
                 >
                   {item.icon}
                 </motion.div>
-              </motion.div>
+              </div>
             );
           })}
         </div>
 
-        <div className="absolute bottom-6 pointer-events-none h-6 flex items-center justify-center">
+        {/* Label Display */}
+        <div className="absolute bottom-4 left-0 right-0 pointer-events-none flex items-center justify-center">
           <AnimatePresence mode='wait'>
             <motion.div
               key={navItems[activeIndex].id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="bg-[var(--text-main)] px-6 py-2 rounded-full shadow-2xl"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="bg-[var(--text-main)] px-4 py-1.5 rounded-full shadow-2xl"
             >
-              <span className="text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--bg-primary)' }}>
+              <span className="text-[8px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--bg-primary)' }}>
                 {navItems[activeIndex].label}
               </span>
             </motion.div>
