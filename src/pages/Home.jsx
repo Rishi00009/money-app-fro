@@ -39,12 +39,11 @@ const Home = () => {
         setUserName(userRes.data.name || "Rishi");
         const range = getCycleRange(startDay);
         const res = await API.get('/transactions', { params: range });
-        setTotals({
-          balance: res.data.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0) - 
-                   res.data.filter(t => t.type === 'spend').reduce((acc, t) => acc + t.amount, 0),
-          income: res.data.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0),
-          spend: res.data.filter(t => t.type === 'spend').reduce((acc, t) => acc + t.amount, 0)
-        });
+        
+        const inc = res.data.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+        const spd = res.data.filter(t => t.type === 'spend').reduce((acc, t) => acc + t.amount, 0);
+        
+        setTotals({ balance: inc - spd, income: inc, spend: spd });
         setTransactions(res.data.slice(0, 5));
         setLoading(false);
       } catch (err) {
@@ -69,7 +68,7 @@ const Home = () => {
       const targetItem = container.querySelectorAll('.nav-scroll-item')[activeIndex];
       if (targetItem) {
         const scrollPos = targetItem.offsetLeft - (container.offsetWidth / 2) + (targetItem.offsetWidth / 2);
-        container.scrollTo({ left: scrollPos });
+        container.scrollTo({ left: scrollPos, behavior: 'smooth' });
       }
     }
   }, [activeIndex]);
@@ -89,13 +88,16 @@ const Home = () => {
         closestIndex = index;
       }
     });
-    if (closestIndex !== activeIndex) setActiveIndex(closestIndex);
+    if (closestIndex !== activeIndex) {
+      setActiveIndex(closestIndex);
+      haptic.light();
+    }
   };
 
   const formatAmount = (num) => (isGhosted && !showSensitive ? "••••••" : `₹${num.toLocaleString()}`);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden pb-40 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="relative min-h-screen overflow-x-hidden pb-44 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
       {/* HEADER */}
       <header className="p-6 pt-12 flex justify-between items-center">
@@ -137,7 +139,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ACTIVITY LOG */}
+      {/* RECENT ACTIVITY */}
       <section className="px-6 mb-10">
         <h3 className="text-[10px] font-black uppercase tracking-widest mb-6 opacity-30" style={{ color: 'var(--text-main)' }}>Recent Pipeline</h3>
         {loading ? (
@@ -147,48 +149,56 @@ const Home = () => {
         )}
       </section>
 
-      {/* --- CORRECTED NAV BAR --- */}
-      <div className="fixed bottom-6 left-0 right-0 h-28 z-50 flex items-center justify-center">
+      {/* --- REFINED NAVIGATION DOCK --- */}
+      <div className="fixed bottom-8 left-0 right-0 h-24 z-50 flex items-center justify-center pointer-events-none">
         {/* Background Dock Shell */}
-        <div className="absolute w-[92%] h-24 bg-[var(--bg-secondary)]/90 backdrop-blur-2xl rounded-[3rem] border border-black/5 shadow-2xl z-10" />
+        <div className="absolute w-[92%] h-20 bg-[var(--bg-secondary)]/80 backdrop-blur-2xl rounded-[2.5rem] border border-black/5 shadow-2xl z-10" />
         
-        {/* The Central Glow (Moves with active index but anchored here) */}
-        <div className="absolute w-20 h-20 rounded-full bg-[var(--brand-color)] opacity-10 blur-xl z-20 pointer-events-none" />
+        {/* STATIC GLASS BACKGROUND FOR SELECTED ITEM */}
+        <div 
+          className="absolute w-16 h-16 rounded-[1.8rem] z-20 shadow-xl border border-white/10" 
+          style={{ backgroundColor: 'var(--brand-color)', opacity: 0.9 }}
+        />
 
         <div 
           ref={scrollRef}
           onScroll={handleScroll}
-          className="relative z-30 flex items-center overflow-x-auto no-scrollbar w-full h-full cursor-grab active:cursor-grabbing"
-          style={{ scrollSnapType: 'x mandatory', paddingLeft: 'calc(50% - 40px)', paddingRight: 'calc(50% - 40px)' }}
+          className="relative z-30 flex items-center overflow-x-auto no-scrollbar w-full h-full cursor-grab active:cursor-grabbing pointer-events-auto"
+          style={{ 
+            scrollSnapType: 'x mandatory', 
+            paddingLeft: 'calc(50% - 40px)', 
+            paddingRight: 'calc(50% - 40px)' 
+          }}
         >
           {navItems.map((item, index) => {
             const isCenter = activeIndex === index;
             return (
               <div
                 key={item.id}
-                className="nav-scroll-item flex-shrink-0 w-20 flex flex-col items-center justify-center h-full"
+                className="nav-scroll-item flex-shrink-0 w-20 flex flex-col items-center justify-center h-full relative"
                 style={{ scrollSnapAlign: 'center' }}
-                onClick={() => { if (isCenter) { haptic.light(); navigate(item.path); }}}
+                onClick={() => { if (isCenter) { haptic.medium(); navigate(item.path); }}}
               >
                 <motion.div
                   animate={{ 
-                    scale: isCenter ? 1.3 : 0.7, 
-                    opacity: isCenter ? 1 : 0.25,
-                    y: isCenter ? -5 : 0
+                    scale: isCenter ? 1.1 : 0.8, 
+                    opacity: isCenter ? 1 : 0.3,
                   }}
-                  className={`flex items-center justify-center ${isCenter ? 'text-[var(--brand-color)]' : 'text-[var(--text-main)]'}`}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  className="relative z-10"
+                  style={{ color: isCenter ? 'var(--bg-primary)' : 'var(--text-main)' }}
                 >
                   {item.icon}
                 </motion.div>
                 
-                {/* Unified Label - Directly under icon within the item */}
+                {/* LABEL POSITIONED FURTHER DOWN */}
                 <AnimatePresence>
                   {isCenter && (
                     <motion.div
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 5 }}
-                      exit={{ opacity: 0, y: 5 }}
-                      className="absolute top-16 bg-[var(--text-main)] px-3 py-1 rounded-full shadow-lg"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 28 }}
+                      exit={{ opacity: 0, y: 20 }}
+                      className="absolute bg-[var(--text-main)] px-3 py-1 rounded-full shadow-lg"
                     >
                       <span className="text-[7px] font-black uppercase tracking-[0.15em]" style={{ color: 'var(--bg-primary)' }}>
                         {item.label}
