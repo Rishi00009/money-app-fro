@@ -1,37 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Check, Sun, Moon, Palette, Sliders, Pipette } from 'lucide-react';
+import { ArrowLeft, Check, Sun, Moon, Palette, Sliders, ChevronRight } from 'lucide-react';
 import { haptic } from '../utils/haptics';
 
 const Settings = () => {
   const navigate = useNavigate();
+  const scrollRef = useRef(null);
 
-  const presets = [
-    // --- Originals ---
-    { name: 'Forest Deep', brand: '#41644A', bgPrimary: '#F1F0E9', bgSecondary: '#ffffff', textMain: '#263A29', brandText: '#F1F0E9' },
-    { name: 'Sky High', brand: '#3B82F6', bgPrimary: '#EFF6FF', bgSecondary: '#FFFFFF', textMain: '#1E3A8A' },
-    
-    // --- New Palettes from Images (Nature & Earth) ---
-    { name: 'Crimson Earth', brand: '#8B1A1A', bgPrimary: '#F5E6D3', bgSecondary: '#E9D7C3', textMain: '#1A0505', brandText: '#FFFFFF' }, // Based on #8B1A1A
-    { name: 'Nature Bloom', brand: '#347928', bgPrimary: '#FFFBE6', bgSecondary: '#C2FFC7', textMain: '#1A3317', brandText: '#FFFFFF' }, // Based on #347928 & #C2FFC7
-    { name: 'Olive Grove', brand: '#708238', bgPrimary: '#F2F1E1', bgSecondary: '#FFFFFF', textMain: '#4B5320', brandText: '#FFFFFF' }, // Based on Olive Image
-    { name: 'Warm Desert', brand: '#E9A15A', bgPrimary: '#FFF0DC', bgSecondary: '#F5E6D3', textMain: '#3E2723', brandText: '#FFFFFF' }, // Based on #FFF0DC
-    
-    // --- Monochrome & Monochrome Dark ---
-    { name: 'Pure White', brand: '#000000', bgPrimary: '#FFFFFF', bgSecondary: '#F5F5F5', textMain: '#000000', brandText: '#FFFFFF' },
-    { name: 'Onyx Black', brand: '#FFFFFF', bgPrimary: '#000000', bgSecondary: '#0A0A0A', textMain: '#FFFFFF', brandText: '#000000' },
-    { name: 'Silver Ink', brand: '#000000', bgPrimary: '#E5E7EB', bgSecondary: '#F3F4F6', textMain: '#1F2937', brandText: '#FFFFFF' },
-    
-    // --- Apt Dark Modes ---
-    { name: 'Cyber Dark', brand: '#bef264', bgPrimary: '#0F172A', bgSecondary: '#1E293B', textMain: '#F8FAF9' },
-    { name: 'Obsidian Gold', brand: '#FACC15', bgPrimary: '#09090B', bgSecondary: '#18181B', textMain: '#E4E4E7', brandText: '#000000' },
-    { name: 'Blood Moon', brand: '#FF4D4D', bgPrimary: '#000000', bgSecondary: '#0D0202', textMain: '#FFB3B3', brandText: '#000000' }
-  ];
+  const presets = {
+    light: [
+      { name: 'Forest Deep', brand: '#41644A', bgPrimary: '#F1F0E9', bgSecondary: '#ffffff', textMain: '#263A29', brandText: '#F1F0E9' },
+      { name: 'Sky High', brand: '#3B82F6', bgPrimary: '#EFF6FF', bgSecondary: '#FFFFFF', textMain: '#1E3A8A' },
+      { name: 'Crimson Earth', brand: '#8B1A1A', bgPrimary: '#F5E6D3', bgSecondary: '#E9D7C3', textMain: '#1A0505', brandText: '#FFFFFF' },
+      { name: 'Nature Bloom', brand: '#347928', bgPrimary: '#FFFBE6', bgSecondary: '#C2FFC7', textMain: '#1A3317', brandText: '#FFFFFF' },
+      { name: 'Olive Grove', brand: '#708238', bgPrimary: '#F2F1E1', bgSecondary: '#FFFFFF', textMain: '#4B5320', brandText: '#FFFFFF' },
+      { name: 'Warm Desert', brand: '#E9A15A', bgPrimary: '#FFF0DC', bgSecondary: '#F5E6D3', textMain: '#3E2723', brandText: '#FFFFFF' },
+      { name: 'Sakura Pink', brand: '#DB2777', bgPrimary: '#FFF1F2', bgSecondary: '#FFFFFF', textMain: '#831843', brandText: '#FFFFFF' },
+      { name: 'Ocean Breeze', brand: '#0891B2', bgPrimary: '#ECFEFF', bgSecondary: '#FFFFFF', textMain: '#164E63', brandText: '#FFFFFF' },
+      { name: 'Lavender Mist', brand: '#7C3AED', bgPrimary: '#F5F3FF', bgSecondary: '#FFFFFF', textMain: '#4C1D95', brandText: '#FFFFFF' },
+      { name: 'Pure White', brand: '#000000', bgPrimary: '#FFFFFF', bgSecondary: '#F5F5F5', textMain: '#000000', brandText: '#FFFFFF' },
+      { name: 'Silver Ink', brand: '#000000', bgPrimary: '#E5E7EB', bgSecondary: '#F3F4F6', textMain: '#1F2937', brandText: '#FFFFFF' },
+    ],
+    dark: [
+      { name: 'Cyber Dark', brand: '#bef264', bgPrimary: '#0F172A', bgSecondary: '#1E293B', textMain: '#F8FAF9' },
+      { name: 'Obsidian Gold', brand: '#FACC15', bgPrimary: '#09090B', bgSecondary: '#18181B', textMain: '#E4E4E7', brandText: '#000000' },
+      { name: 'Aurora Night', brand: '#10B981', bgPrimary: '#000000', bgSecondary: '#050A09', textMain: '#A7F3D0', brandText: '#000000' },
+      { name: 'Onyx Black', brand: '#FFFFFF', bgPrimary: '#000000', bgSecondary: '#0A0A0A', textMain: '#FFFFFF', brandText: '#000000' },
+      { name: 'Deep Sea', brand: '#00D4FF', bgPrimary: '#010409', bgSecondary: '#0D1117', textMain: '#C9D1D9', brandText: '#010409' },
+      { name: 'Titanium', brand: '#94A3B8', bgPrimary: '#0F1115', bgSecondary: '#1C1F26', textMain: '#E2E8F0', brandText: '#000000' },
+      { name: 'Void Purple', brand: '#A855F7', bgPrimary: '#080510', bgSecondary: '#120B24', textMain: '#E9D5FF', brandText: '#000000' },
+      { name: 'Matrix Dark', brand: '#00FF41', bgPrimary: '#0D0208', bgSecondary: '#003B00', textMain: '#00FF41', brandText: '#000000' }
+    ]
+  };
 
+  const [mode, setMode] = useState('light'); // 'light' or 'dark'
   const [currentTheme, setCurrentTheme] = useState(() => {
     const saved = localStorage.getItem('app-theme');
-    return saved ? JSON.parse(saved) : presets[0];
+    return saved ? JSON.parse(saved) : presets.light[0];
   });
 
   const [manualColors, setManualColors] = useState({
@@ -52,93 +58,98 @@ const Settings = () => {
     root.style.setProperty('--text-main', theme.textMain);
     root.style.setProperty('--brand-text', theme.brandText || '#FFFFFF');
     
-    setManualColors({
-      brand: theme.brand,
-      bgPrimary: theme.bgPrimary,
-      textMain: theme.textMain
-    });
-  };
-
-  const handleManualChange = (key, val) => {
-    const newColors = { ...manualColors, [key]: val };
-    setManualColors(newColors);
-    
-    const customTheme = {
-      name: 'Custom Terminal',
-      brand: newColors.brand,
-      bgPrimary: newColors.bgPrimary,
-      bgSecondary: newColors.bgPrimary,
-      textMain: newColors.textMain,
-      brandText: '#FFFFFF'
-    };
-    
-    applyTheme(customTheme);
+    setManualColors({ brand: theme.brand, bgPrimary: theme.bgPrimary, textMain: theme.textMain });
   };
 
   return (
-    <div className="min-h-screen pb-32 transition-colors duration-500 select-none" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="min-h-screen pb-32 transition-colors duration-500 overflow-x-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
-      <header className="p-6 pt-12 flex justify-between items-center border-b border-black/5" style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0 0 3rem 3rem' }}>
-        <button onClick={() => { haptic.light(); navigate('/home'); }} className="p-3 rounded-2xl bg-black/5 active:scale-90 transition-transform">
+      <header className="p-6 pt-12 flex justify-between items-center">
+        <button onClick={() => { haptic.light(); navigate('/home'); }} className="p-3 rounded-2xl bg-black/5 active:scale-90 transition-transform shadow-sm">
           <ArrowLeft size={24} style={{ color: 'var(--text-main)' }} />
         </button>
-        <h1 className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-main)' }}>Visual Terminal</h1>
+        <h1 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: 'var(--text-main)' }}>Terminal Config</h1>
         <div className="w-12"></div>
       </header>
 
-      <div className="p-6 space-y-10">
+      <div className="p-6 space-y-12">
         
-        {/* MANUAL OVERRIDE */}
-        <section className="p-6 rounded-[2.5rem] border-2 shadow-inner" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}>
-          <div className="flex items-center gap-2 mb-6 opacity-40">
-            <Sliders size={14} style={{ color: 'var(--text-main)' }} />
-            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-main)' }}>Manual Override</span>
+        {/* MODE TOGGLE - UNIQUE 3D DESIGN */}
+        <div className="flex justify-center">
+            <div className="p-2 rounded-[2rem] flex gap-2 shadow-inner border-2 border-black/5" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                <button 
+                    onClick={() => { haptic.light(); setMode('light'); }}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest ${mode === 'light' ? 'bg-amber-400 text-amber-950 shadow-lg' : 'opacity-20'}`}
+                >
+                    <Sun size={16} /> Day
+                </button>
+                <button 
+                    onClick={() => { haptic.light(); setMode('dark'); }}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest ${mode === 'dark' ? 'bg-indigo-600 text-white shadow-lg' : 'opacity-20'}`}
+                >
+                    <Moon size={16} /> Night
+                </button>
+            </div>
+        </div>
+
+        {/* THEME SLIDER - SHOW ONLY 2, SLIDE FOR MORE */}
+        <section className="relative">
+          <div className="flex items-center justify-between px-2 mb-6">
+            <div className="flex items-center gap-2 opacity-40">
+                <Palette size={14} style={{ color: 'var(--text-main)' }} />
+                <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-main)' }}>Preset Pipeline</span>
+            </div>
+            <span className="text-[8px] font-black uppercase opacity-20" style={{ color: 'var(--text-main)' }}>Swipe for more <ChevronRight size={10} className="inline ml-1"/></span>
           </div>
-          <div className="space-y-4">
+
+          <div 
+            ref={scrollRef}
+            className="flex gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 pb-8"
+            style={{ paddingLeft: '20px', paddingRight: '20px' }}
+          >
+            <AnimatePresence mode="wait">
+              {presets[mode].map((t) => (
+                <ThemeCard 
+                  key={t.name} 
+                  theme={t} 
+                  isActive={currentTheme.name === t.name} 
+                  onClick={() => applyTheme(t)} 
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        </section>
+
+        {/* MANUAL OVERRIDE CARD */}
+        <section className="p-8 rounded-[3rem] border-2 shadow-2xl relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}>
+          <div className="flex items-center gap-2 mb-8">
+            <Sliders size={16} style={{ color: 'var(--brand-color)' }} />
+            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-main)' }}>Manual Calibration</span>
+          </div>
+          
+          <div className="space-y-5">
             {[
-              { label: 'Primary Accent', key: 'brand' },
-              { label: 'Base Canvas', key: 'bgPrimary' },
-              { label: 'Text / Ink', key: 'textMain' }
+              { label: 'Core Accent', key: 'brand' },
+              { label: 'Main Base', key: 'bgPrimary' },
+              { label: 'Typography', key: 'textMain' }
             ].map((field) => (
-              <div key={field.key} className="flex items-center justify-between p-3 rounded-2xl bg-black/5">
+              <div key={field.key} className="flex items-center justify-between p-4 rounded-2xl bg-black/5 border border-black/5">
                 <span className="text-[9px] font-black uppercase tracking-widest opacity-60" style={{ color: 'var(--text-main)' }}>{field.label}</span>
                 <input 
                   type="color" 
                   value={manualColors[field.key]} 
-                  onChange={(e) => handleManualChange(field.key, e.target.value)}
-                  className="w-10 h-8 rounded-lg cursor-pointer bg-transparent border-none"
+                  onChange={(e) => {
+                    const newColors = { ...manualColors, [field.key]: e.target.value };
+                    setManualColors(newColors);
+                    applyTheme({ ...currentTheme, ...newColors, name: 'Custom Entry' });
+                  }}
+                  className="w-12 h-10 rounded-xl cursor-pointer bg-transparent border-none scale-125"
                 />
               </div>
             ))}
           </div>
         </section>
 
-        {/* ACTIVE PREVIEW */}
-        <section className="p-8 rounded-[2.5rem] border-2 flex flex-col items-center justify-center gap-4 shadow-xl" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--brand-color)' }}>
-            <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: 'var(--brand-color)' }}>
-                <Check size={32} style={{ color: 'var(--brand-text)' }} />
-            </div>
-            <h2 className="text-xl font-black uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>{currentTheme.name}</h2>
-        </section>
-
-        {/* PRESETS GRID */}
-        <section className="space-y-6">
-          <div className="flex items-center gap-2 opacity-30 px-2">
-            <Palette size={14} style={{ color: 'var(--text-main)' }} />
-            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-main)' }}>System Presets</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {presets.map((t) => (
-              <ThemeCard 
-                key={t.name} 
-                theme={t} 
-                isActive={currentTheme.name === t.name} 
-                onClick={() => applyTheme(t)} 
-              />
-            ))}
-          </div>
-        </section>
       </div>
     </div>
   );
@@ -146,22 +157,32 @@ const Settings = () => {
 
 const ThemeCard = ({ theme, isActive, onClick }) => (
   <motion.button
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
     whileTap={{ scale: 0.95 }}
     onClick={onClick}
-    className={`relative p-4 rounded-[2.2rem] border-2 transition-all flex flex-col items-center gap-3 shadow-sm ${isActive ? 'scale-105' : 'opacity-70'}`}
+    className={`relative flex-shrink-0 w-[70vw] sm:w-[280px] p-6 rounded-[3rem] border-4 transition-all snap-center shadow-2xl ${isActive ? 'opacity-100' : 'opacity-40'}`}
     style={{ 
       backgroundColor: theme.bgSecondary || theme.bgPrimary, 
       borderColor: isActive ? theme.brand : 'transparent' 
     }}
   >
-    <div className="w-full h-12 rounded-2xl flex items-center justify-around overflow-hidden border border-black/5" style={{ backgroundColor: theme.bgPrimary }}>
-      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.brand }} />
-      <div className="w-10 h-1.5 rounded-full" style={{ backgroundColor: theme.textMain, opacity: 0.2 }} />
+    {/* Minimalist Preview UI */}
+    <div className="w-full h-32 rounded-[2rem] mb-6 flex flex-col justify-center items-center gap-3 shadow-inner" style={{ backgroundColor: theme.bgPrimary }}>
+        <div className="w-12 h-12 rounded-2xl shadow-lg flex items-center justify-center" style={{ backgroundColor: theme.brand }}>
+            <Check size={24} style={{ color: theme.brandText || '#fff' }} strokeWidth={4} className={isActive ? 'scale-100' : 'scale-0'} />
+        </div>
+        <div className="h-2 w-20 rounded-full opacity-20" style={{ backgroundColor: theme.textMain }} />
     </div>
-    <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: theme.textMain }}>{theme.name}</span>
+
+    <div className="text-left space-y-1">
+        <p className="text-[12px] font-black uppercase tracking-tighter" style={{ color: theme.textMain }}>{theme.name}</p>
+        <p className="text-[8px] font-bold uppercase tracking-widest opacity-30" style={{ color: theme.textMain }}>System Profile</p>
+    </div>
+
     {isActive && (
-      <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center shadow-md" style={{ backgroundColor: theme.brand }}>
-        <Check size={12} style={{ color: theme.brandText || '#fff' }} strokeWidth={4} />
+      <div className="absolute top-6 right-6">
+        <div className="w-4 h-4 rounded-full animate-ping" style={{ backgroundColor: theme.brand }} />
       </div>
     )}
   </motion.button>
