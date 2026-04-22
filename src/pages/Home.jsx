@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useMotionValue, animate } from 'framer-motion';
 import { 
@@ -12,7 +12,7 @@ const Home = () => {
   const navigate = useNavigate();
   
   // --- STATE ---
-  const [activeIndex, setActiveIndex] = useState(2); // Index 2 is "Add Entry"
+  const [activeIndex, setActiveIndex] = useState(2); 
   const [userName, setUserName] = useState("User"); 
   const [transactions, setTransactions] = useState([]);
   const [totals, setTotals] = useState({ balance: 0, income: 0, spend: 0 });
@@ -21,7 +21,7 @@ const Home = () => {
   const [showSensitive, setShowSensitive] = useState(false); 
 
   // --- DRAG CONFIG ---
-  const ITEM_WIDTH = 80; // The width of each nav icon area
+  const ITEM_WIDTH = 80; 
   const dragX = useMotionValue(0);
   
   const navItems = [
@@ -32,39 +32,20 @@ const Home = () => {
     { id: 'reports', icon: <Bell size={22} />, path: '/reports', label: 'Reports' },
   ];
 
-  const smoothSpring = {
-    type: "spring",
-    stiffness: 350,
-    damping: 25,
-    mass: 0.8
-  };
-
-  // --- INITIAL POSITIONING ---
-  // Center the "Add Entry" button (Index 2) on load
+  // --- SYNC INITIAL POSITION ---
   useEffect(() => {
-    const centerOffset = -(2 * ITEM_WIDTH);
-    dragX.set(centerOffset);
-  }, [dragX]);
+    // This centers the 3rd item (index 2) exactly in the middle of the screen
+    const initialPos = -(2 * ITEM_WIDTH);
+    dragX.set(initialPos);
+  }, []);
 
   // --- DATA FETCHING ---
-  const getCycleRange = (startDay) => {
-    const now = new Date();
-    let start = new Date(now.getFullYear(), now.getMonth(), startDay, 0, 0, 0);
-    if (now.getDate() < startDay) start.setMonth(start.getMonth() - 1);
-    let end = new Date(start);
-    end.setMonth(end.getMonth() + 1);
-    end.setSeconds(end.getSeconds() - 1);
-    return { from: start.toISOString(), to: end.toISOString() };
-  };
-
   useEffect(() => {
     const fetchTerminalData = async () => {
       try {
         const userRes = await API.get('/auth/me');
-        const startDay = userRes.data.cycleStartDay || 1;
         setUserName(userRes.data.name || "Rishi");
-        const range = getCycleRange(startDay);
-        const res = await API.get('/transactions', { params: range });
+        const res = await API.get('/transactions');
         
         const inc = res.data.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
         const spd = res.data.filter(t => t.type === 'spend').reduce((acc, t) => acc + t.amount, 0);
@@ -80,10 +61,11 @@ const Home = () => {
     fetchTerminalData();
   }, [navigate]);
 
-  // --- SWIPE HANDLER ---
+  // --- SWIPE LOGIC ---
   const handleDragEnd = (event, info) => {
     const currentX = dragX.get();
-    // Find closest index based on X position
+    
+    // Calculate which index is closest to the center
     const closestIndex = Math.round(Math.abs(currentX / ITEM_WIDTH));
     const clampedIndex = Math.max(0, Math.min(closestIndex, navItems.length - 1));
     
@@ -94,18 +76,19 @@ const Home = () => {
       setActiveIndex(clampedIndex);
     }
 
-    // Snap to the target item
+    // Animate snap
     animate(dragX, targetX, {
       type: "spring",
       stiffness: 400,
-      damping: 35
+      damping: 30,
+      mass: 0.8
     });
   };
 
   const formatAmount = (num) => (isGhosted && !showSensitive ? "••••••" : `₹${num.toLocaleString()}`);
 
   return (
-    <div className="relative min-h-screen overflow-hidden pb-44 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="relative min-h-screen overflow-hidden pb-44" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
       {/* HEADER */}
       <header className="p-6 pt-12 flex justify-between items-center">
@@ -118,72 +101,62 @@ const Home = () => {
             <h1 className="text-xl font-black uppercase tracking-tight" style={{ color: 'var(--text-main)' }}>{userName}</h1>
           </div>
         </div>
-        <button onClick={() => navigate('/reports')} className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-white/5 shadow-lg active:scale-95 transition-transform">
-          <Bell size={20} style={{ color: 'var(--text-main)' }} />
-        </button>
       </header>
 
-      {/* BALANCE CARD */}
+      {/* BALANCE */}
       <section className="px-6 mb-8">
-        <motion.div 
-          layout
+        <div 
           onClick={() => { if(isGhosted) { haptic.light(); setShowSensitive(!showSensitive); }}}
-          className="p-8 rounded-[3rem] bg-[var(--bg-secondary)] border border-white/5 shadow-2xl relative overflow-hidden active:scale-[0.98] transition-transform cursor-pointer"
+          className="p-8 rounded-[3rem] bg-[var(--bg-secondary)] border border-white/5 shadow-2xl relative overflow-hidden"
         >
-          <div className="flex justify-between items-center mb-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 font-black" style={{ color: 'var(--text-main)' }}>Cycle Liquidity</p>
-            {isGhosted && <div className="opacity-20" style={{ color: 'var(--text-main)' }}>{showSensitive ? <Eye size={14} /> : <EyeOff size={14} />}</div>}
-          </div>
-          <motion.h2 initial={false} className="text-5xl font-black mb-8 tracking-tighter" style={{ color: 'var(--text-main)' }}>{formatAmount(totals.balance)}</motion.h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col border-r border-white/10 pr-4">
-              <span className="text-[9px] uppercase font-black text-emerald-500 mb-1 tracking-widest">Inflow</span>
-              <div className="flex items-center gap-1 font-black text-sm tracking-tight" style={{ color: 'var(--text-main)' }}><ArrowUpRight size={14} className="text-emerald-500" /> {formatAmount(totals.income)}</div>
-            </div>
-            <div className="flex flex-col pl-4">
-              <span className="text-[9px] uppercase font-black text-rose-500 mb-1 tracking-widest">Outflow</span>
-              <div className="flex items-center gap-1 font-black text-sm tracking-tight" style={{ color: 'var(--text-main)' }}><ArrowDownLeft size={14} className="text-rose-500" /> {formatAmount(totals.spend)}</div>
-            </div>
-          </div>
-        </motion.div>
+          <p className="text-[10px] uppercase opacity-40 font-black" style={{ color: 'var(--text-main)' }}>Cycle Liquidity</p>
+          <h2 className="text-5xl font-black mb-8 tracking-tighter" style={{ color: 'var(--text-main)' }}>{formatAmount(totals.balance)}</h2>
+        </div>
       </section>
 
-      {/* ACTIVITY LOG */}
+      {/* RECENT ACTIVITY */}
       <section className="px-6 mb-10">
         <h3 className="text-[10px] font-black uppercase tracking-widest mb-6 opacity-30" style={{ color: 'var(--text-main)' }}>Recent Pipeline</h3>
         {loading ? (
-          <div className="flex justify-center py-10 opacity-20"><Loader2 className="animate-spin" style={{ color: 'var(--text-main)' }} /></div>
+          <div className="flex justify-center py-10"><Loader2 className="animate-spin opacity-20" style={{ color: 'var(--text-main)' }} /></div>
         ) : (
           <div className="space-y-4">
-            {transactions.map((tx) => <SwipeItem key={tx._id} emoji={tx.type === 'income' ? "🏦" : "🛒"} label={tx.category} amount={formatAmount(tx.amount)} isIncome={tx.type === 'income'} />)}
+            {transactions.map((tx) => (
+              <div key={tx._id} className="bg-[var(--bg-secondary)] p-5 flex justify-between items-center rounded-[2.5rem] border border-black/5">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[var(--bg-primary)]">
+                    {tx.type === 'income' ? "🏦" : "🛒"}
+                  </div>
+                  <p className="font-black text-sm text-[var(--text-main)]">{tx.category}</p>
+                </div>
+                <p className={`font-black text-lg ${tx.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>{formatAmount(tx.amount)}</p>
+              </div>
+            ))}
           </div>
         )}
       </section>
 
-      {/* --- SWIPEABLE PREMIUM DOCK --- */}
+      {/* --- THE NAVIGATION DOCK --- */}
       <div className="fixed bottom-8 left-0 right-0 h-24 z-50 flex items-center justify-center pointer-events-none">
         
-        {/* Background Dock Shell */}
-        <div className="absolute w-[92%] h-20 bg-[var(--bg-secondary)]/80 backdrop-blur-2xl rounded-[2.5rem] border border-black/5 shadow-2xl z-10" />
+        {/* Dock Shell */}
+        <div className="absolute w-[92%] h-20 bg-[var(--bg-secondary)]/90 backdrop-blur-2xl rounded-[2.5rem] border border-white/5 shadow-2xl z-10" />
         
-        {/* Fixed Selection Glass (Does not move) */}
-        <motion.div 
+        {/* Selection Highlight (Fixed in Center) */}
+        <div 
           className="absolute w-16 h-16 rounded-[1.8rem] z-20 border border-white/10" 
-          style={{ 
-            backgroundColor: 'var(--brand-color)',
-            opacity: 0.9,
-            boxShadow: `0 0 20px -5px var(--brand-color)`
-          }}
+          style={{ backgroundColor: 'var(--brand-color)', boxShadow: `0 0 20px -5px var(--brand-color)` }}
         />
 
-        {/* Draggable Icon Track */}
-        <div className="relative z-30 w-full h-full flex items-center justify-center pointer-events-auto overflow-visible">
+        {/* Swipeable Track */}
+        <div className="relative z-30 w-full h-full flex items-center justify-center pointer-events-auto">
           <motion.div
             drag="x"
             dragConstraints={{
               left: -((navItems.length - 1) * ITEM_WIDTH),
               right: 0
             }}
+            dragElastic={0.2}
             style={{ x: dragX }}
             onDragEnd={handleDragEnd}
             className="flex items-center cursor-grab active:cursor-grabbing"
@@ -193,20 +166,19 @@ const Home = () => {
               return (
                 <div
                   key={item.id}
-                  className="w-20 flex-shrink-0 flex flex-col items-center justify-center h-24 relative"
-                  onClick={() => { 
-                    if (isCenter) { 
-                      haptic.medium(); 
-                      navigate(item.path); 
-                    } 
+                  className="w-20 flex-shrink-0 flex flex-col items-center justify-center h-24"
+                  onClick={() => {
+                    if (isCenter) {
+                      haptic.medium();
+                      navigate(item.path);
+                    }
                   }}
                 >
                   <motion.div
                     animate={{ 
-                      scale: isCenter ? 1.2 : 0.7, 
-                      opacity: isCenter ? 1 : 0.2,
+                      scale: isCenter ? 1.2 : 0.6, 
+                      opacity: isCenter ? 1 : 0.25 
                     }}
-                    transition={smoothSpring}
                     style={{ color: isCenter ? 'var(--bg-primary)' : 'var(--text-main)' }}
                   >
                     {item.icon}
@@ -218,10 +190,9 @@ const Home = () => {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 32 }}
                         exit={{ opacity: 0, y: 10 }}
-                        transition={smoothSpring}
-                        className="absolute bg-[var(--text-main)] px-3 py-1 rounded-full shadow-lg whitespace-nowrap"
+                        className="absolute bg-[var(--text-main)] px-3 py-1 rounded-full shadow-lg"
                       >
-                        <span className="text-[7px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--bg-primary)' }}>
+                        <span className="text-[7px] font-black uppercase tracking-widest" style={{ color: 'var(--bg-primary)' }}>
                           {item.label}
                         </span>
                       </motion.div>
@@ -236,23 +207,5 @@ const Home = () => {
     </div>
   );
 };
-
-const SwipeItem = ({ emoji, label, amount, isIncome = false }) => (
-  <motion.div 
-    initial={{ opacity: 0, x: -10 }} 
-    animate={{ opacity: 1, x: 0 }}
-    whileHover={{ scale: 1.01 }} 
-    className="bg-[var(--bg-secondary)] p-5 flex justify-between items-center rounded-[2.5rem] border border-black/5 shadow-sm mx-2"
-  >
-    <div className="flex items-center gap-4">
-      <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-lg bg-[var(--bg-primary)] shadow-inner">{emoji}</div>
-      <div>
-        <p className="font-black text-sm tracking-tight text-[var(--text-main)]">{label}</p>
-        <p className="text-[8px] uppercase opacity-30 font-black tracking-widest">System Entry</p>
-      </div>
-    </div>
-    <p className={`font-black text-lg tracking-tighter ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>{amount}</p>
-  </motion.div>
-);
 
 export default Home;
