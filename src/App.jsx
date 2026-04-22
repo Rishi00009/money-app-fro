@@ -18,13 +18,37 @@ import Creator from './pages/Creator';
 // Utilities
 import { haptic } from './utils/haptics';
 
-// Global Navigation Wrapper for Haptics
+// --- 1. THEME ORCHESTRATOR ---
+// This ensures the custom colors apply to ALL pages globally
+const ThemeOrchestrator = () => {
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('user-theme');
+    if (savedTheme) {
+      const theme = JSON.parse(savedTheme);
+      const root = document.documentElement;
+      
+      // Inject the saved colors into CSS variables
+      root.style.setProperty('--brand-color', theme.brand);
+      root.style.setProperty('--bg-primary', theme.bgPrimary);
+      root.style.setProperty('--bg-secondary', theme.bgSecondary);
+      root.style.setProperty('--text-main', theme.textMain);
+      
+      // Optional: Handle Brand Text Contrast (White vs Black)
+      if (theme.brandText) {
+        root.style.setProperty('--brand-text', theme.brandText);
+      }
+    }
+  }, []);
+
+  return null;
+};
+
+// --- 2. GLOBAL NAVIGATION HAPTICS ---
 const HapticNavigation = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Triggers a light Pixel-style click on every route change
-    // This makes the UI feel physical and responsive
+    // Triggers the light click on every page transition
     haptic.light();
   }, [location.pathname]);
 
@@ -34,7 +58,8 @@ const HapticNavigation = () => {
 function App() {
   return (
     <Router>
-      {/* Listens to URL changes to trigger global haptics */}
+      {/* Essential Global Handlers */}
+      <ThemeOrchestrator />
       <HapticNavigation />
       
       <Routes>

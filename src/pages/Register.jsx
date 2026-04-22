@@ -136,7 +136,7 @@ const Register = () => {
             <button 
               type="button" 
               onClick={() => { haptic.light(); navigate('/login'); }}
-              className="text-slate-400 text-sm font-bold uppercase tracking-widest hover:text-lime-600 transition-colors"
+              className="text-lime-700 text-sm font-bold uppercase tracking-widest hover:text-lime-600 transition-colors"
             >
             Login instead
             </button>
