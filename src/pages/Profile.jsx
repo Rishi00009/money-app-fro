@@ -12,11 +12,9 @@ const Profile = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   
-  // --- State Management ---
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [imagePreview, setImagePreview] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [userData, setUserData] = useState({
@@ -25,10 +23,9 @@ const Profile = () => {
     password: '', 
     profilePic: '',
     banks: [],
-    cycleStartDay: 1 // Default start of month
+    cycleStartDay: 1
   });
 
-  // --- Animation & Swipe Logic ---
   const dragX = useMotionValue(0);
   const textOpacity = useTransform(dragX, [0, 80], [1, 0]);
   const fillWidth = useTransform(dragX, [0, 220], ["0%", "100%"]);
@@ -55,6 +52,23 @@ const Profile = () => {
     fetchProfile();
   }, [navigate]);
 
+  // --- Image to Base64 Handler ---
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 1048576) { // 1MB Limit for Base64 storage
+        alert("File too large. Maximum 1MB allowed for terminal sync.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUserData(prev => ({ ...prev, profilePic: reader.result }));
+        haptic.light();
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleUpdate = async () => {
     setSaving(true);
     haptic.medium();
@@ -67,7 +81,6 @@ const Profile = () => {
       cycleStartDay: Number(userData.cycleStartDay)
     };
 
-    // Update password only if the user typed one
     if (userData.password && userData.password.trim() !== '') {
       updatePayload.password = userData.password;
     }
@@ -76,10 +89,10 @@ const Profile = () => {
       await API.put('/auth/update', updatePayload);
       setUserData(prev => ({ ...prev, password: '' })); 
       haptic.success();
-      alert("Terminal Synchronized Successfully");
+      alert("Intelligence Protocol Updated");
     } catch (err) {
       haptic.error();
-      alert("Sync Failed: Connection Error");
+      alert("Sync Failed: Protocol Interrupted");
     } finally {
       setSaving(false);
     }
@@ -113,7 +126,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen pb-32 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
-      {/* 1. HEADER */}
+      {/* HEADER */}
       <header className="p-6 pt-12 flex justify-between items-center border-b border-black/5" style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0 0 3rem 3rem' }}>
         <button onClick={() => { haptic.light(); navigate('/home'); }} className="p-3 rounded-2xl bg-black/5 active:scale-90 transition-transform">
           <ArrowLeft size={24} style={{ color: 'var(--text-main)' }} />
@@ -132,9 +145,39 @@ const Profile = () => {
         </button>
       </header>
 
-      <section className="px-8 space-y-8 mt-10">
+      {/* AVATAR SECTION */}
+      <div className="flex flex-col items-center mt-10 mb-12">
+        <div className="relative group">
+          <div className="w-32 h-32 rounded-[3.5rem] border-2 flex items-center justify-center overflow-hidden shadow-2xl transition-transform active:scale-95" 
+               style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--brand-color)' }}>
+            {userData.profilePic ? (
+              <img src={userData.profilePic} className="w-full h-full object-cover" alt="Profile" />
+            ) : (
+              <User size={50} className="opacity-20" style={{ color: 'var(--text-main)' }} />
+            )}
+          </div>
+          
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept="image/*" 
+            onChange={handleImageChange} 
+          />
+          
+          <button 
+            onClick={() => { haptic.light(); fileInputRef.current.click(); }} 
+            className="absolute -bottom-2 -right-2 p-4 rounded-2xl shadow-xl active:scale-90 transition-transform"
+            style={{ backgroundColor: 'var(--text-main)', color: 'var(--brand-color)' }}
+          >
+            <Camera size={18} strokeWidth={3} />
+          </button>
+        </div>
+      </div>
+
+      <section className="px-8 space-y-8">
         
-        {/* MONTHLY CYCLE START DAY */}
+        {/* CYCLE DAY */}
         <div className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.6 }}>
           <label className="text-[9px] uppercase font-black tracking-widest block mb-2 opacity-40" style={{ color: 'var(--text-main)' }}>Monthly Cycle Start Day</label>
           <div className="flex items-center gap-4">
@@ -151,10 +194,9 @@ const Profile = () => {
             </select>
             <ChevronDown size={14} className="opacity-30" style={{ color: 'var(--text-main)' }} />
           </div>
-          <p className="text-[8px] opacity-30 mt-1 font-bold italic" style={{ color: 'var(--text-main)' }}>* Your home summary will calculate from this day each month.</p>
         </div>
 
-        {/* IDENTITY FIELDS */}
+        {/* NAME */}
         <div className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.6 }}>
           <label className="text-[9px] uppercase font-black tracking-widest block mb-2 opacity-40" style={{ color: 'var(--text-main)' }}>Legal Identity</label>
           <div className="flex items-center gap-4">
@@ -163,7 +205,16 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* SECURITY KEY UPDATE */}
+        {/* USERNAME */}
+        <div className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.6 }}>
+          <label className="text-[9px] uppercase font-black tracking-widest block mb-2 opacity-40" style={{ color: 'var(--text-main)' }}>Handle / Alias</label>
+          <div className="flex items-center gap-4">
+            <Mail size={18} style={{ color: 'var(--brand-color)' }} />
+            <input className="bg-transparent outline-none w-full font-bold text-lg" style={{ color: 'var(--text-main)' }} value={userData.username} onChange={(e) => setUserData({...userData, username: e.target.value})} />
+          </div>
+        </div>
+
+        {/* PASSWORD */}
         <div className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.6 }}>
           <label className="text-[9px] uppercase font-black tracking-widest block mb-2 opacity-40" style={{ color: 'var(--text-main)' }}>Change Security Key</label>
           <div className="flex items-center gap-4">
@@ -182,13 +233,13 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* LINKED ACCOUNTS */}
+        {/* BANKS */}
         <div className="space-y-4">
           <label className="text-[9px] uppercase font-black tracking-widest block opacity-40" style={{ color: 'var(--text-main)' }}>Linked Global Accounts</label>
           <div className="relative flex items-center">
             <input 
               type="text"
-              placeholder="Search or Add Bank..."
+              placeholder="Add Bank..."
               className="w-full p-5 pr-14 rounded-[2rem] outline-none text-xs font-bold border-2"
               style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)', borderColor: 'var(--bg-primary)' }}
               value={searchTerm}
@@ -210,9 +261,8 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* LOGOUT SLIDER */}
+        {/* LOGOUT */}
         <div className="pt-12">
-          <label className="text-[9px] uppercase font-black tracking-widest block mb-4 text-center opacity-30" style={{ color: 'var(--text-main)' }}>System Security</label>
           <div className="relative h-20 w-full rounded-[2.5rem] flex items-center p-2 overflow-hidden border-2 shadow-inner" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}>
             <motion.div className="absolute left-0 top-0 bottom-0 pointer-events-none" style={{ width: fillWidth, backgroundColor: 'var(--brand-color)', opacity: 0.2 }} />
             <motion.div style={{ opacity: textOpacity }} className="absolute inset-0 flex items-center justify-center pointer-events-none text-[10px] font-black uppercase tracking-[0.3em] opacity-40" style={{ color: 'var(--text-main)' }}>
