@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, ChevronDown, ArrowRight, Check, Delete, Loader2, Edit3 } from 'lucide-react';
+import { X, ArrowRight, Check, Delete, Loader2, Edit3, AlertCircle } from 'lucide-react';
 import API from '../utils/api';
 import { haptic } from '../utils/haptics';
 
@@ -21,16 +21,12 @@ const AddTransaction = () => {
   const [selectedBank, setSelectedBank] = useState('');
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorHint, setErrorHint] = useState(null);
 
   // --- Animation Values ---
   const dragX = useMotionValue(0);
-  
-  // 1. Swipe color fill
   const swipeWidth = useTransform(dragX, [0, 280], ["0%", "100%"]);
   const textOpacity = useTransform(dragX, [0, 100], [0.3, 0]);
-
-  // 2. Typing BG Color Transition: Shifts from Primary BG to a faint Brand color tint
-  const hasAmount = amount.length > 0;
 
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -47,6 +43,7 @@ const AddTransaction = () => {
 
   const handleNumberClick = (num) => { 
     haptic.light(); 
+    setErrorHint(null);
     if (amount.length < 10) setAmount(prev => prev + num); 
   };
 
@@ -56,11 +53,13 @@ const AddTransaction = () => {
   };
 
   const handleConfirm = async () => {
-    if (!amount || !category || (category === 'Others' && !customCategory) || loading) {
+    if (!amount || !category || (category === 'Others' && !customCategory)) {
       haptic.error();
+      setErrorHint(!amount ? "Enter Amount" : "Select Category");
       dragX.set(0); 
       return;
     }
+    
     setLoading(true);
     try {
       await API.post('/transactions/add', {
@@ -77,11 +76,16 @@ const AddTransaction = () => {
     }
   };
 
+  // Determine dynamic glow color
+  const glowColor = type === 'income' ? '#10b981' : 'var(--brand-color)';
+
   return (
     <motion.div 
       animate={{ 
-        // Background shifts color slightly when user is typing
-        backgroundColor: hasAmount ? 'color-mix(in srgb, var(--bg-primary), var(--brand-color) 8%)' : 'var(--bg-primary)' 
+        // Adaptive BG: Shifts based on SPEND or INCOME type
+        backgroundColor: amount.length > 0 
+          ? (type === 'income' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(233, 131, 61, 0.08)') 
+          : 'var(--bg-primary)' 
       }}
       className="min-h-screen flex flex-col overflow-hidden select-none transition-colors duration-700"
     >
@@ -92,35 +96,34 @@ const AddTransaction = () => {
           <X size={24} style={{ color: 'var(--text-main)' }} />
         </button>
         
-        {/* 3D TOGGLE SWITCH */}
-        <div className="flex p-1 rounded-2xl shadow-[inset_4px_4px_8px_rgba(0,0,0,0.1),inset_-4px_-4px_8px_rgba(255,255,255,0.7)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="flex p-1 rounded-2xl shadow-inner" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <button 
             onClick={() => { haptic.medium(); setType('spend'); }} 
             className={`px-6 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300 ${
-              type === 'spend' ? 'bg-[#E9833D] text-white shadow-[4px_4px_10px_rgba(233,131,61,0.4)]' : 'opacity-20'
+              type === 'spend' ? 'bg-[#E9833D] text-white shadow-lg' : 'opacity-20'
             }`}
           >SPEND</button>
           <button 
             onClick={() => { haptic.medium(); setType('income'); }} 
             className={`px-6 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300 ${
-              type === 'income' ? 'bg-emerald-600 text-white shadow-[4px_4px_10px_rgba(5,150,105,0.4)]' : 'opacity-20'
+              type === 'income' ? 'bg-emerald-600 text-white shadow-lg' : 'opacity-20'
             }`}
           >INCOME</button>
         </div>
         <div className="w-10"></div>
       </header>
 
-      {/* AMOUNT DISPLAY WITH BACKLIGHT */}
+      {/* AMOUNT DISPLAY */}
       <div className="flex-1 flex flex-col px-8 pt-4 justify-center relative">
         <div className="text-center relative">
           <AnimatePresence>
-            {hasAmount && (
+            {amount.length > 0 && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 0.3, scale: 1.5 }}
+                animate={{ opacity: 0.2, scale: 1.5 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 blur-[80px] rounded-full w-40 h-40 mx-auto pointer-events-none"
-                style={{ backgroundColor: 'var(--brand-color)', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                className="absolute inset-0 blur-[100px] rounded-full w-48 h-48 mx-auto pointer-events-none"
+                style={{ backgroundColor: glowColor, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
               />
             )}
           </AnimatePresence>
@@ -128,37 +131,35 @@ const AddTransaction = () => {
           <div className="relative z-10 flex flex-col items-center">
             <p className="text-[10px] uppercase tracking-[0.5em] mb-4 opacity-30 font-black" style={{ color: 'var(--text-main)' }}>Terminal Entry</p>
             <div className="flex items-center gap-3">
-              <span className="text-4xl font-black" style={{ color: 'var(--brand-color)' }}>₹</span>
-              <h1 className="text-7xl font-black tracking-tighter drop-shadow-[4px_4px_0px_rgba(0,0,0,0.05)]" style={{ color: 'var(--text-main)' }}>
+              <span className="text-4xl font-black" style={{ color: glowColor }}>₹</span>
+              <h1 className="text-7xl font-black tracking-tighter" style={{ color: 'var(--text-main)' }}>
                 {amount || '0'}
               </h1>
             </div>
           </div>
         </div>
 
-        {/* INPUTS */}
         <div className="mt-12 space-y-6">
-          <div className="border-b-2 pb-2" style={{ borderColor: 'var(--text-main)', opacity: 0.1 }}>
+          <div className="border-b-2 pb-2 transition-all" style={{ borderColor: 'var(--text-main)', opacity: selectedBank ? 0.3 : 0.1 }}>
             <select className="w-full bg-transparent outline-none font-bold text-lg appearance-none" style={{ color: 'var(--text-main)' }} value={selectedBank} onChange={(e) => setSelectedBank(e.target.value)}>
               {userBanks.map(bank => <option key={bank} value={bank}>{bank}</option>)}
             </select>
           </div>
 
-          <div className="border-b-2 pb-2" style={{ borderColor: 'var(--text-main)', opacity: 0.1 }}>
-            <select className="w-full bg-transparent outline-none font-bold text-lg appearance-none" style={{ color: 'var(--text-main)' }} value={category} onChange={(e) => setCategory(e.target.value)}>
+          <div className="border-b-2 pb-2 transition-all" style={{ borderColor: 'var(--text-main)', opacity: category ? 0.3 : 0.1 }}>
+            <select className="w-full bg-transparent outline-none font-bold text-lg appearance-none" style={{ color: 'var(--text-main)' }} value={category} onChange={(e) => { haptic.light(); setCategory(e.target.value); setErrorHint(null); }}>
               <option value="" disabled>Select Category</option>
               {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
 
-          {/* MANUAL REASON */}
           <AnimatePresence>
             {category === 'Others' && (
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="relative">
-                <Edit3 className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" size={18} style={{ color: 'var(--brand-color)' }} />
+                <Edit3 className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" size={18} style={{ color: glowColor }} />
                 <input 
-                  type="text" placeholder="Manual Reason..."
-                  className="w-full p-5 pl-12 rounded-3xl outline-none text-sm font-bold shadow-[inset_2px_2px_5px_rgba(0,0,0,0.05)]"
+                  type="text" placeholder="Specify Reason..."
+                  className="w-full p-5 pl-12 rounded-3xl outline-none text-sm font-bold shadow-inner"
                   style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)' }}
                   value={customCategory} onChange={(e) => setCustomCategory(e.target.value)}
                 />
@@ -169,36 +170,42 @@ const AddTransaction = () => {
       </div>
 
       {/* NUMPAD & SWIPE AREA */}
-      <div className="p-6 rounded-t-[3.5rem] border-t shadow-2xl transition-colors duration-500" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}>
-        <div className="grid grid-cols-3 gap-y-2 mb-8 text-center">
+      <div className="p-6 rounded-t-[3.5rem] border-t shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}>
+        <div className="grid grid-cols-3 gap-y-1 mb-8 text-center">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0].map((num) => (
             <motion.button 
               key={num} 
-              whileTap={{ scale: 0.85, backgroundColor: 'var(--brand-color)', color: 'var(--bg-secondary)' }}
+              whileTap={{ scale: 0.8 }}
               onClick={() => handleNumberClick(num.toString())} 
-              className="py-4 text-3xl font-black rounded-2xl transition-colors duration-100" 
+              className="py-4 text-3xl font-black rounded-2xl transition-colors" 
               style={{ color: 'var(--text-main)' }}
             >{num}</motion.button>
           ))}
           <motion.button onClick={handleBackspace} whileTap={{ scale: 0.7 }} className="py-4 flex items-center justify-center opacity-30"><Delete size={28} style={{ color: 'var(--text-main)' }} /></motion.button>
         </div>
 
-        {/* SWIPE TO COMMIT - 3D GROOVE */}
-        <div className="relative h-20 w-full rounded-[2.5rem] flex items-center p-2 overflow-hidden border-2 shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05)]" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--bg-secondary)' }}>
-          
+        {/* SWIPE TO COMMIT */}
+        <div className="relative h-20 w-full rounded-[2.5rem] flex items-center p-2 overflow-hidden border-2 shadow-inner" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--bg-secondary)' }}>
           <motion.div 
             className="absolute left-0 top-0 bottom-0 pointer-events-none origin-left"
-            style={{ width: swipeWidth, backgroundColor: 'var(--brand-color)', opacity: 0.6 }}
+            style={{ width: swipeWidth, backgroundColor: glowColor, opacity: 0.5 }}
           />
 
           <motion.div style={{ opacity: textOpacity }} className="absolute inset-0 flex items-center justify-center pointer-events-none text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: 'var(--text-main)' }}>
-            {loading ? 'SYNCING...' : 'Swipe to Commit'}
+            <AnimatePresence mode="wait">
+              {errorHint ? (
+                <motion.span key="err" initial={{ y: 5 }} animate={{ y: 0 }} className="text-rose-500 flex items-center gap-2">
+                  <AlertCircle size={14}/> {errorHint}
+                </motion.span>
+              ) : (
+                <span key="idle">{loading ? 'SYNCING...' : 'Swipe to Commit'}</span>
+              )}
+            </AnimatePresence>
           </motion.div>
           
           <motion.div
-            drag="x" dragConstraints={{ left: 0, right: 280 }} dragSnapToOrigin={!isConfirmed}
+            drag="x" dragConstraints={{ left: 0, right: 280 }}
             style={{ x: dragX }}
-            onDragStart={() => haptic.light()}
             onDragEnd={(e, info) => { 
               if (info.offset.x > 220 && !loading) handleConfirm();
               else { haptic.light(); dragX.set(0); }
@@ -206,7 +213,7 @@ const AddTransaction = () => {
             className="z-10 h-16 w-16 rounded-[2rem] flex items-center justify-center cursor-grab active:cursor-grabbing shadow-xl"
             style={{ backgroundColor: isConfirmed ? '#10b981' : 'var(--bg-secondary)' }}
           >
-            {isConfirmed ? <Check className="text-white" size={32} strokeWidth={4} /> : loading ? <Loader2 className="animate-spin" size={28} style={{ color: 'var(--brand-color)' }} /> : <ArrowRight style={{ color: 'var(--brand-color)' }} size={32} strokeWidth={3} />}
+            {isConfirmed ? <Check className="text-white" size={32} strokeWidth={4} /> : loading ? <Loader2 className="animate-spin" size={28} style={{ color: glowColor }} /> : <ArrowRight style={{ color: glowColor }} size={32} strokeWidth={3} />}
           </motion.div>
         </div>
       </div>

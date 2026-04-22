@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Check, Sun, Moon, Palette, Sliders, ChevronRight } from 'lucide-react';
+import { 
+  ArrowLeft, Check, Sun, Moon, Palette, Sliders, 
+  ChevronRight, EyeOff, Zap, ShieldCheck 
+} from 'lucide-react';
 import { haptic } from '../utils/haptics';
 
 const Settings = () => {
@@ -34,7 +37,12 @@ const Settings = () => {
     ]
   };
 
-  const [mode, setMode] = useState('light'); // 'light' or 'dark'
+  const [mode, setMode] = useState('light');
+  
+  // --- Enhanced System States ---
+  const [ghostMode, setGhostMode] = useState(() => localStorage.getItem('ghost-mode') === 'true');
+  const [tactileHaptics, setTactileHaptics] = useState(() => localStorage.getItem('tactile-haptics') !== 'false');
+
   const [currentTheme, setCurrentTheme] = useState(() => {
     const saved = localStorage.getItem('app-theme');
     return saved ? JSON.parse(saved) : presets.light[0];
@@ -46,19 +54,37 @@ const Settings = () => {
     textMain: currentTheme.textMain
   });
 
+  useEffect(() => {
+    const applyToDom = (theme) => {
+      const root = document.documentElement;
+      root.style.setProperty('--brand-color', theme.brand);
+      root.style.setProperty('--bg-primary', theme.bgPrimary);
+      root.style.setProperty('--bg-secondary', theme.bgSecondary || theme.bgPrimary);
+      root.style.setProperty('--text-main', theme.textMain);
+      root.style.setProperty('--brand-text', theme.brandText || '#FFFFFF');
+    };
+    if (currentTheme) applyToDom(currentTheme);
+  }, [currentTheme]);
+
   const applyTheme = (theme) => {
     haptic.medium();
     setCurrentTheme(theme);
     localStorage.setItem('app-theme', JSON.stringify(theme));
-
-    const root = document.documentElement;
-    root.style.setProperty('--brand-color', theme.brand);
-    root.style.setProperty('--bg-primary', theme.bgPrimary);
-    root.style.setProperty('--bg-secondary', theme.bgSecondary || theme.bgPrimary);
-    root.style.setProperty('--text-main', theme.textMain);
-    root.style.setProperty('--brand-text', theme.brandText || '#FFFFFF');
-    
     setManualColors({ brand: theme.brand, bgPrimary: theme.bgPrimary, textMain: theme.textMain });
+  };
+
+  const toggleGhostMode = () => {
+    const newState = !ghostMode;
+    setGhostMode(newState);
+    localStorage.setItem('ghost-mode', newState);
+    haptic.success();
+  };
+
+  const toggleHaptics = () => {
+    const newState = !tactileHaptics;
+    setTactileHaptics(newState);
+    localStorage.setItem('tactile-haptics', newState);
+    if (newState) haptic.medium();
   };
 
   return (
@@ -74,7 +100,7 @@ const Settings = () => {
 
       <div className="p-6 space-y-12">
         
-        {/* MODE TOGGLE - UNIQUE 3D DESIGN */}
+        {/* MODE TOGGLE */}
         <div className="flex justify-center">
             <div className="p-2 rounded-[2rem] flex gap-2 shadow-inner border-2 border-black/5" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                 <button 
@@ -92,7 +118,7 @@ const Settings = () => {
             </div>
         </div>
 
-        {/* THEME SLIDER - SHOW ONLY 2, SLIDE FOR MORE */}
+        {/* THEME SLIDER */}
         <section className="relative">
           <div className="flex items-center justify-between px-2 mb-6">
             <div className="flex items-center gap-2 opacity-40">
@@ -105,7 +131,6 @@ const Settings = () => {
           <div 
             ref={scrollRef}
             className="flex gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 pb-8"
-            style={{ paddingLeft: '20px', paddingRight: '20px' }}
           >
             <AnimatePresence mode="wait">
               {presets[mode].map((t) => (
@@ -120,7 +145,61 @@ const Settings = () => {
           </div>
         </section>
 
-        {/* MANUAL OVERRIDE CARD */}
+        {/* NEW: SECURITY & SYSTEM CONTROLS */}
+        <section className="space-y-4 px-2">
+          <div className="flex items-center gap-2 opacity-30">
+            <ShieldCheck size={14} style={{ color: 'var(--text-main)' }} />
+            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-main)' }}>Security Protocols</span>
+          </div>
+
+          <div className="space-y-3">
+            {/* Ghost Mode Toggle */}
+            <div 
+              onClick={toggleGhostMode}
+              className="p-5 rounded-[2rem] bg-[var(--bg-secondary)] flex items-center justify-between border border-black/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-black/5" style={{ color: ghostMode ? 'var(--brand-color)' : 'var(--text-main)', opacity: ghostMode ? 1 : 0.3 }}>
+                  <EyeOff size={18}/>
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase" style={{ color: 'var(--text-main)' }}>Ghost Mode</p>
+                  <p className="text-[8px] font-bold opacity-30 uppercase" style={{ color: 'var(--text-main)' }}>Hide balances on dashboard</p>
+                </div>
+              </div>
+              <div className={`w-10 h-5 rounded-full transition-colors relative p-1 ${ghostMode ? 'bg-[var(--brand-color)]' : 'bg-black/10'}`}>
+                <motion.div 
+                  animate={{ x: ghostMode ? 20 : 0 }}
+                  className="w-3 h-3 rounded-full bg-white shadow-md" 
+                />
+              </div>
+            </div>
+
+            {/* Haptics Toggle */}
+            <div 
+              onClick={toggleHaptics}
+              className="p-5 rounded-[2rem] bg-[var(--bg-secondary)] flex items-center justify-between border border-black/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-black/5" style={{ color: tactileHaptics ? 'var(--brand-color)' : 'var(--text-main)', opacity: tactileHaptics ? 1 : 0.3 }}>
+                  <Zap size={18}/>
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase" style={{ color: 'var(--text-main)' }}>Tactile Haptics</p>
+                  <p className="text-[8px] font-bold opacity-30 uppercase" style={{ color: 'var(--text-main)' }}>Mechanical vibration feedback</p>
+                </div>
+              </div>
+              <div className={`w-10 h-5 rounded-full transition-colors relative p-1 ${tactileHaptics ? 'bg-[var(--brand-color)]' : 'bg-black/10'}`}>
+                <motion.div 
+                  animate={{ x: tactileHaptics ? 20 : 0 }}
+                  className="w-3 h-3 rounded-full bg-white shadow-md" 
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* MANUAL CALIBRATION */}
         <section className="p-8 rounded-[3rem] border-2 shadow-2xl relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}>
           <div className="flex items-center gap-2 mb-8">
             <Sliders size={16} style={{ color: 'var(--brand-color)' }} />
@@ -161,16 +240,15 @@ const ThemeCard = ({ theme, isActive, onClick }) => (
     animate={{ opacity: 1, scale: 1 }}
     whileTap={{ scale: 0.95 }}
     onClick={onClick}
-    className={`relative flex-shrink-0 w-[70vw] sm:w-[280px] p-6 rounded-[3rem] border-4 transition-all snap-center shadow-2xl ${isActive ? 'opacity-100' : 'opacity-40'}`}
+    className={`relative flex-shrink-0 w-[75vw] sm:w-[280px] p-6 rounded-[3rem] border-4 transition-all snap-center shadow-2xl ${isActive ? 'opacity-100' : 'opacity-40'}`}
     style={{ 
       backgroundColor: theme.bgSecondary || theme.bgPrimary, 
       borderColor: isActive ? theme.brand : 'transparent' 
     }}
   >
-    {/* Minimalist Preview UI */}
     <div className="w-full h-32 rounded-[2rem] mb-6 flex flex-col justify-center items-center gap-3 shadow-inner" style={{ backgroundColor: theme.bgPrimary }}>
         <div className="w-12 h-12 rounded-2xl shadow-lg flex items-center justify-center" style={{ backgroundColor: theme.brand }}>
-            <Check size={24} style={{ color: theme.brandText || '#fff' }} strokeWidth={4} className={isActive ? 'scale-100' : 'scale-0'} />
+            <Check size={24} style={{ color: theme.brandText || '#fff' }} strokeWidth={4} className={isActive ? 'scale-100' : 'scale-0 transition-transform'} />
         </div>
         <div className="h-2 w-20 rounded-full opacity-20" style={{ backgroundColor: theme.textMain }} />
     </div>

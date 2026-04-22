@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Bell, Plus, User, Settings, Code, 
-  ArrowUpRight, ArrowDownLeft, Landmark, Trash2, History, Loader2 
+  Bell, Plus, User, Settings, History, 
+  ArrowUpRight, ArrowDownLeft, Loader2, Eye, EyeOff 
 } from 'lucide-react';
 import API from '../utils/api';
+import { haptic } from '../utils/haptics';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -17,58 +18,38 @@ const Home = () => {
   const [totals, setTotals] = useState({ balance: 0, income: 0, spend: 0 });
   const [loading, setLoading] = useState(true);
 
-  // --- 1. Helper: Calculate Billing Cycle Dates ---
+  // --- 1. Privacy & System States ---
+  const [isGhosted, setIsGhosted] = useState(() => localStorage.getItem('ghost-mode') === 'true');
+  const [showSensitive, setShowSensitive] = useState(false); // Local toggle to "peek" at numbers
+
   const getCycleRange = (startDay) => {
     const now = new Date();
-    // Create start date for current month
     let start = new Date(now.getFullYear(), now.getMonth(), startDay, 0, 0, 0);
-    
-    // If today is BEFORE the selected start day, the cycle began last month
-    if (now.getDate() < startDay) {
-      start.setMonth(start.getMonth() - 1);
-    }
-    
-    // End date is one month from start minus one second
+    if (now.getDate() < startDay) start.setMonth(start.getMonth() - 1);
     let end = new Date(start);
     end.setMonth(end.getMonth() + 1);
     end.setSeconds(end.getSeconds() - 1);
-
-    return { 
-      from: start.toISOString(), 
-      to: end.toISOString() 
-    };
+    return { from: start.toISOString(), to: end.toISOString() };
   };
 
-  // --- 2. Data Fetching ---
   useEffect(() => {
     const fetchTerminalData = async () => {
       try {
-        // A. Fetch Profile for Name and Cycle Preference
         const userRes = await API.get('/auth/me');
         const startDay = userRes.data.cycleStartDay || 1;
         setUserName(userRes.data.name || "Rishi");
 
-        // B. Calculate Range
         const range = getCycleRange(startDay);
-
-        // C. Fetch Transactions within that range
         const res = await API.get('/transactions', { params: range });
         const txs = res.data;
 
-        // D. Filter & Calculate (Backend should ideally filter, but this is a safety check)
         const income = txs.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
         const spend = txs.filter(t => t.type === 'spend').reduce((acc, t) => acc + t.amount, 0);
 
-        setTotals({
-          balance: income - spend,
-          income,
-          spend
-        });
-        
+        setTotals({ balance: income - spend, income, spend });
         setTransactions(txs.slice(0, 5));
         setLoading(false);
       } catch (err) {
-        console.error("Home Sync Error:", err);
         setLoading(false);
         if (err.response?.status === 401) navigate('/');
       }
@@ -76,7 +57,7 @@ const Home = () => {
     fetchTerminalData();
   }, [navigate]);
 
-  // Center Nav on Mount
+  // Center Nav
   useEffect(() => {
     if (scrollRef.current) {
       const container = scrollRef.current;
@@ -96,22 +77,10 @@ const Home = () => {
     { id: 'reports', icon: <Bell size={24} />, path: '/reports', label: 'Reports' },
   ];
 
-  const handleScroll = () => {
-    if (!scrollRef.current) return;
-    const container = scrollRef.current;
-    const centerPoint = container.scrollLeft + container.offsetWidth / 2;
-    let closestIndex = 0;
-    let minDistance = Infinity;
-    const items = container.querySelectorAll('.nav-scroll-item');
-    items.forEach((item, index) => {
-      const itemCenter = item.offsetLeft + item.offsetWidth / 2;
-      const distance = Math.abs(centerPoint - itemCenter);
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestIndex = index;
-      }
-    });
-    if (closestIndex !== activeIndex) setActiveIndex(closestIndex);
+  // Helper to mask numbers
+  const formatAmount = (num) => {
+    if (isGhosted && !showSensitive) return "••••••";
+    return `₹${num.toLocaleString()}`;
   };
 
   return (
@@ -128,35 +97,40 @@ const Home = () => {
             <h1 className="text-xl font-black uppercase tracking-tight" style={{ color: 'var(--text-main)' }}>{userName}</h1>
           </div>
         </div>
-        <button className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-white/5 shadow-lg active:scale-95 transition-transform">
+        <button onClick={() => navigate('/reports')} className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-white/5 shadow-lg active:scale-95 transition-transform">
           <Bell size={20} style={{ color: 'var(--text-main)' }} />
         </button>
       </header>
 
-      {/* BALANCE CARD */}
+      {/* BALANCE CARD with Privacy Toggle */}
       <section className="px-6 mb-8">
-        <div className="p-8 rounded-[3rem] bg-[var(--bg-secondary)] border border-white/5 shadow-2xl relative overflow-hidden group">
+        <div 
+          onClick={() => { if(isGhosted) { haptic.light(); setShowSensitive(!showSensitive); }}}
+          className="p-8 rounded-[3rem] bg-[var(--bg-secondary)] border border-white/5 shadow-2xl relative overflow-hidden group active:scale-[0.98] transition-transform cursor-pointer"
+        >
           <div className="flex justify-between items-center mb-2">
             <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 font-black" style={{ color: 'var(--text-main)' }}>Cycle Liquidity</p>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-500 text-[8px] font-black uppercase tracking-widest border border-blue-500/20">
-               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> Live Cycle
-            </div>
+            {isGhosted && (
+              <div className="opacity-20" style={{ color: 'var(--text-main)' }}>
+                {showSensitive ? <Eye size={14} /> : <EyeOff size={14} />}
+              </div>
+            )}
           </div>
           <h2 className="text-5xl font-black mb-8 tracking-tighter" style={{ color: 'var(--text-main)' }}>
-            ₹{totals.balance.toLocaleString()}
+            {formatAmount(totals.balance)}
           </h2>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col border-r border-white/10 pr-4">
               <span className="text-[9px] uppercase font-black text-emerald-500 mb-1 tracking-widest">Inflow</span>
               <div className="flex items-center gap-1 font-black text-sm tracking-tight" style={{ color: 'var(--text-main)' }}>
-                <ArrowUpRight size={14} className="text-emerald-500" /> ₹{totals.income.toLocaleString()}
+                <ArrowUpRight size={14} className="text-emerald-500" /> {formatAmount(totals.income)}
               </div>
             </div>
             <div className="flex flex-col pl-4">
               <span className="text-[9px] uppercase font-black text-rose-500 mb-1 tracking-widest">Outflow</span>
               <div className="flex items-center gap-1 font-black text-sm tracking-tight" style={{ color: 'var(--text-main)' }}>
-                <ArrowDownLeft size={14} className="text-rose-500" /> ₹{totals.spend.toLocaleString()}
+                <ArrowDownLeft size={14} className="text-rose-500" /> {formatAmount(totals.spend)}
               </div>
             </div>
           </div>
@@ -174,7 +148,7 @@ const Home = () => {
               key={tx._id} 
               emoji={tx.type === 'income' ? "🏦" : "🛒"} 
               label={tx.category} 
-              amount={`${tx.type === 'income' ? '+ ' : '- '}₹${tx.amount.toLocaleString()}`} 
+              amount={formatAmount(tx.amount)}
               isIncome={tx.type === 'income'}
             />
           ))
@@ -192,7 +166,6 @@ const Home = () => {
 
         <div 
           ref={scrollRef}
-          onScroll={handleScroll}
           className="relative flex items-center overflow-x-auto no-scrollbar w-full h-full pointer-events-auto cursor-grab active:cursor-grabbing mb-6"
           style={{ scrollSnapType: 'x mandatory', paddingLeft: 'calc(50% - 40px)', paddingRight: 'calc(50% - 40px)' }}
         >
