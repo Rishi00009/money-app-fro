@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { 
   ArrowLeft, Camera, User, Plus, X, 
-  Landmark, Loader2, Mail, Lock, Eye, EyeOff, LogOut, ChevronRight 
+  Landmark, Loader2, Mail, Lock, Eye, EyeOff, LogOut, ChevronRight, CalendarDays, ChevronDown 
 } from 'lucide-react';
 import API from '../utils/api';
 import { haptic } from '../utils/haptics';
@@ -24,20 +24,15 @@ const Profile = () => {
     username: '',
     password: '', 
     profilePic: '',
-    banks: []
+    banks: [],
+    cycleStartDay: 1 // Default start of month
   });
 
-  // --- REFINED SWIPE LOGIC ---
+  // --- Animation & Swipe Logic ---
   const dragX = useMotionValue(0);
-  
-  // Fades the hint text as handle moves
   const textOpacity = useTransform(dragX, [0, 80], [1, 0]);
-  
-  // THEME-BASED FILL: Maps handle movement (0-220px) to background width (0-100%)
   const fillWidth = useTransform(dragX, [0, 220], ["0%", "100%"]);
-  
-  // Icon shifts from neutral to danger color (Sunset Orange/Red)
-  const iconColor = useTransform(dragX, [0, 180], ["#94a3b8", "#ef4444"]);
+  const iconColor = useTransform(dragX, [0, 180], ["#41644A", "#E9833D"]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -48,7 +43,8 @@ const Profile = () => {
           username: res.data.username || '',
           password: '', 
           profilePic: res.data.profilePic || '',
-          banks: res.data.banks || ['Cash (Wallet)']
+          banks: res.data.banks || ['Cash (Wallet)'],
+          cycleStartDay: res.data.cycleStartDay || 1
         });
         setLoading(false);
       } catch (err) {
@@ -63,27 +59,27 @@ const Profile = () => {
     setSaving(true);
     haptic.medium();
     
-    // Payload construction
     const updatePayload = {
       name: userData.name,
       username: userData.username,
       profilePic: userData.profilePic,
-      banks: userData.banks
+      banks: userData.banks,
+      cycleStartDay: Number(userData.cycleStartDay)
     };
 
-    // Only update password if a value exists
+    // Update password only if the user typed one
     if (userData.password && userData.password.trim() !== '') {
       updatePayload.password = userData.password;
     }
 
     try {
       await API.put('/auth/update', updatePayload);
-      setUserData(prev => ({ ...prev, password: '' })); // Reset local password field
+      setUserData(prev => ({ ...prev, password: '' })); 
       haptic.success();
-      alert("Security Protocol Updated Successfully");
+      alert("Terminal Synchronized Successfully");
     } catch (err) {
       haptic.error();
-      alert("Sync Error: Connection interrupted");
+      alert("Sync Failed: Connection Error");
     } finally {
       setSaving(false);
     }
@@ -117,13 +113,13 @@ const Profile = () => {
   return (
     <div className="min-h-screen pb-32 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
-      {/* 1. HEADER - Includes Display Name */}
+      {/* 1. HEADER */}
       <header className="p-6 pt-12 flex justify-between items-center border-b border-black/5" style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0 0 3rem 3rem' }}>
         <button onClick={() => { haptic.light(); navigate('/home'); }} className="p-3 rounded-2xl bg-black/5 active:scale-90 transition-transform">
           <ArrowLeft size={24} style={{ color: 'var(--text-main)' }} />
         </button>
         <div className="text-center flex flex-col">
-          <h1 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40" style={{ color: 'var(--text-main)' }}>Security Profile</h1>
+          <h1 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40" style={{ color: 'var(--text-main)' }}>Intelligence</h1>
           <span className="text-[10px] font-black uppercase tracking-[0.1em]" style={{ color: 'var(--brand-color)' }}>{userData.name}</span>
         </div>
         <button 
@@ -136,29 +132,29 @@ const Profile = () => {
         </button>
       </header>
 
-      {/* 2. AVATAR SECTION */}
-      <div className="flex flex-col items-center mt-10 mb-12">
-        <div className="relative">
-          <div className="w-32 h-32 rounded-[3rem] border-2 flex items-center justify-center overflow-hidden shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--brand-color)' }}>
-            {(imagePreview || userData.profilePic) ? (
-              <img src={imagePreview || userData.profilePic} className="w-full h-full object-cover" alt="Profile" />
-            ) : (
-              <User size={50} className="opacity-20" style={{ color: 'var(--text-main)' }} />
-            )}
+      <section className="px-8 space-y-8 mt-10">
+        
+        {/* MONTHLY CYCLE START DAY */}
+        <div className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.6 }}>
+          <label className="text-[9px] uppercase font-black tracking-widest block mb-2 opacity-40" style={{ color: 'var(--text-main)' }}>Monthly Cycle Start Day</label>
+          <div className="flex items-center gap-4">
+            <CalendarDays size={18} style={{ color: 'var(--brand-color)' }} />
+            <select 
+              className="bg-transparent outline-none w-full font-bold text-lg appearance-none"
+              style={{ color: 'var(--text-main)' }}
+              value={userData.cycleStartDay}
+              onChange={(e) => setUserData({...userData, cycleStartDay: e.target.value})}
+            >
+              {[...Array(28)].map((_, i) => (
+                <option key={i + 1} value={i + 1} className="text-black">Day {i + 1}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="opacity-30" style={{ color: 'var(--text-main)' }} />
           </div>
-          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => {/* Handle image logic here if needed */}} />
-          <button 
-            onClick={() => { haptic.light(); fileInputRef.current.click(); }} 
-            className="absolute -bottom-1 -right-1 p-4 rounded-2xl shadow-lg active:scale-90 transition-transform"
-            style={{ backgroundColor: 'var(--text-main)', color: 'var(--brand-color)' }}
-          >
-            <Camera size={18} strokeWidth={3} />
-          </button>
+          <p className="text-[8px] opacity-30 mt-1 font-bold italic" style={{ color: 'var(--text-main)' }}>* Your home summary will calculate from this day each month.</p>
         </div>
-      </div>
 
-      <section className="px-8 space-y-8">
-        {/* Name Field */}
+        {/* IDENTITY FIELDS */}
         <div className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.6 }}>
           <label className="text-[9px] uppercase font-black tracking-widest block mb-2 opacity-40" style={{ color: 'var(--text-main)' }}>Legal Identity</label>
           <div className="flex items-center gap-4">
@@ -167,16 +163,7 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Username Field */}
-        <div className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.6 }}>
-          <label className="text-[9px] uppercase font-black tracking-widest block mb-2 opacity-40" style={{ color: 'var(--text-main)' }}>Handle / Alias</label>
-          <div className="flex items-center gap-4">
-            <Mail size={18} style={{ color: 'var(--brand-color)' }} />
-            <input className="bg-transparent outline-none w-full font-bold text-lg" style={{ color: 'var(--text-main)' }} value={userData.username} onChange={(e) => setUserData({...userData, username: e.target.value})} />
-          </div>
-        </div>
-
-        {/* Password Reset Field */}
+        {/* SECURITY KEY UPDATE */}
         <div className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.6 }}>
           <label className="text-[9px] uppercase font-black tracking-widest block mb-2 opacity-40" style={{ color: 'var(--text-main)' }}>Change Security Key</label>
           <div className="flex items-center gap-4">
@@ -195,99 +182,49 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Bank Management */}
-        <div className="space-y-4 pt-4">
+        {/* LINKED ACCOUNTS */}
+        <div className="space-y-4">
           <label className="text-[9px] uppercase font-black tracking-widest block opacity-40" style={{ color: 'var(--text-main)' }}>Linked Global Accounts</label>
           <div className="relative flex items-center">
             <input 
               type="text"
-              placeholder="Search or Add Any Bank..."
-              className="w-full p-5 pr-14 rounded-[2rem] outline-none text-xs font-bold border-2 shadow-inner"
+              placeholder="Search or Add Bank..."
+              className="w-full p-5 pr-14 rounded-[2rem] outline-none text-xs font-bold border-2"
               style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)', borderColor: 'var(--bg-primary)' }}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && addBank()}
             />
-            <button 
-              onClick={() => addBank()} 
-              className="absolute right-3 p-2.5 rounded-2xl active:scale-90 transition-transform shadow-md"
-              style={{ backgroundColor: 'var(--text-main)', color: 'var(--brand-color)' }}
-            >
-              <Plus size={20} strokeWidth={3} />
-            </button>
+            <button onClick={() => addBank()} className="absolute right-3 p-2.5 rounded-2xl" style={{ backgroundColor: 'var(--text-main)', color: 'var(--brand-color)' }}><Plus size={20} /></button>
           </div>
-          
           <div className="flex flex-wrap gap-2">
             <AnimatePresence>
               {userData.banks.map((bank) => (
-                <motion.div 
-                  key={bank} 
-                  initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.8 }}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-2xl border border-black/5"
-                  style={{ backgroundColor: 'var(--bg-secondary)' }}
-                >
+                <motion.div key={bank} initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.8 }} className="flex items-center gap-2 px-5 py-2.5 rounded-2xl shadow-sm border border-black/5" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                   <Landmark size={12} style={{ color: 'var(--brand-color)' }} />
                   <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>{bank}</span>
-                  <button onClick={() => removeBank(bank)} className="ml-1 opacity-20 hover:opacity-100 transition-opacity" style={{ color: 'var(--text-main)' }}>
-                    <X size={12} strokeWidth={4} />
-                  </button>
+                  <button onClick={() => removeBank(bank)} className="opacity-20" style={{ color: 'var(--text-main)' }}><X size={12} /></button>
                 </motion.div>
               ))}
             </AnimatePresence>
           </div>
         </div>
 
-        {/* --- 3. DYNAMIC PILL LOGOUT --- */}
+        {/* LOGOUT SLIDER */}
         <div className="pt-12">
           <label className="text-[9px] uppercase font-black tracking-widest block mb-4 text-center opacity-30" style={{ color: 'var(--text-main)' }}>System Security</label>
-          
-          <div className="relative w-full h-20 rounded-[2.5rem] flex items-center p-2 overflow-hidden border-2 shadow-inner" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}>
-            
-            {/* THE FIX: Dynamic fill color linked to theme */}
-            <motion.div 
-              className="absolute left-0 top-0 bottom-0 pointer-events-none"
-              style={{ 
-                width: fillWidth, 
-                backgroundColor: 'var(--brand-color)', 
-                opacity: 0.2 
-              }}
-            />
-
-            {/* Hint Text */}
-            <motion.div 
-              style={{ opacity: textOpacity }}
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            >
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 opacity-40" style={{ color: 'var(--text-main)' }}>
-                Swipe to Logout <ChevronRight size={14} className="animate-pulse" />
-              </span>
+          <div className="relative h-20 w-full rounded-[2.5rem] flex items-center p-2 overflow-hidden border-2 shadow-inner" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}>
+            <motion.div className="absolute left-0 top-0 bottom-0 pointer-events-none" style={{ width: fillWidth, backgroundColor: 'var(--brand-color)', opacity: 0.2 }} />
+            <motion.div style={{ opacity: textOpacity }} className="absolute inset-0 flex items-center justify-center pointer-events-none text-[10px] font-black uppercase tracking-[0.3em] opacity-40" style={{ color: 'var(--text-main)' }}>
+              Swipe to Logout <ChevronRight size={14} className="animate-pulse ml-2" />
             </motion.div>
-
-            {/* Handle */}
             <motion.div
-              drag="x"
-              dragConstraints={{ left: 0, right: 220 }}
-              dragElastic={0.05}
-              style={{ x: dragX }} // Explicitly link motion value
-              onDragStart={() => haptic.light()}
-              onDragEnd={(_, info) => {
-                if (info.offset.x > 180) {
-                  handleLogout();
-                } else {
-                  haptic.light();
-                  dragX.set(0); 
-                }
-              }}
+              drag="x" dragConstraints={{ left: 0, right: 220 }} dragElastic={0.05} style={{ x: dragX }}
+              onDragStart={() => haptic.light()} onDragEnd={(_, info) => { if (info.offset.x > 180) handleLogout(); else { haptic.light(); dragX.set(0); } }}
               className="z-10 w-24 h-16 shadow-2xl flex items-center justify-center cursor-grab active:cursor-grabbing border-2"
-              style={{ 
-                borderRadius: '2rem',
-                backgroundColor: 'var(--bg-secondary)',
-                borderColor: 'var(--bg-primary)'
-              }}
+              style={{ borderRadius: '2rem', backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}
             >
-              <motion.div style={{ color: iconColor }}>
-                <LogOut size={26} strokeWidth={2.5} />
-              </motion.div>
+              <motion.div style={{ color: iconColor }}><LogOut size={26} strokeWidth={2.5} /></motion.div>
             </motion.div>
           </div>
         </div>
