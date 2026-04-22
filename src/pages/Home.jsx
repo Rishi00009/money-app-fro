@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, animate } from 'framer-motion';
 import { 
   Bell, Plus, User, Settings, History, 
   ArrowUpRight, ArrowDownLeft, Loader2, Eye, EyeOff 
@@ -10,25 +10,20 @@ import { haptic } from '../utils/haptics';
 
 const Home = () => {
   const navigate = useNavigate();
-  const scrollRef = useRef(null);
   
-  // Index 2 corresponds to the "Add Entry" (Plus) button in navItems
-  const [activeIndex, setActiveIndex] = useState(2); 
+  // --- STATE ---
+  const [activeIndex, setActiveIndex] = useState(2); // Index 2 is "Add Entry"
   const [userName, setUserName] = useState("User"); 
   const [transactions, setTransactions] = useState([]);
   const [totals, setTotals] = useState({ balance: 0, income: 0, spend: 0 });
   const [loading, setLoading] = useState(true);
-
   const [isGhosted, setIsGhosted] = useState(() => localStorage.getItem('ghost-mode') === 'true');
   const [showSensitive, setShowSensitive] = useState(false); 
 
-  const smoothSpring = {
-    type: "spring",
-    stiffness: 350,
-    damping: 25,
-    mass: 0.8
-  };
-
+  // --- DRAG CONFIG ---
+  const ITEM_WIDTH = 80; // The width of each nav icon area
+  const dragX = useMotionValue(0);
+  
   const navItems = [
     { id: 'profile', icon: <User size={22} />, path: '/profile', label: 'Profile' },
     { id: 'history', icon: <History size={22} />, path: '/history', label: 'History' },
@@ -37,6 +32,21 @@ const Home = () => {
     { id: 'reports', icon: <Bell size={22} />, path: '/reports', label: 'Reports' },
   ];
 
+  const smoothSpring = {
+    type: "spring",
+    stiffness: 350,
+    damping: 25,
+    mass: 0.8
+  };
+
+  // --- INITIAL POSITIONING ---
+  // Center the "Add Entry" button (Index 2) on load
+  useEffect(() => {
+    const centerOffset = -(2 * ITEM_WIDTH);
+    dragX.set(centerOffset);
+  }, [dragX]);
+
+  // --- DATA FETCHING ---
   const getCycleRange = (startDay) => {
     const now = new Date();
     let start = new Date(now.getFullYear(), now.getMonth(), startDay, 0, 0, 0);
@@ -70,47 +80,34 @@ const Home = () => {
     fetchTerminalData();
   }, [navigate]);
 
-  // Handle auto-scroll to the "Add Entry" button on mount and index change
-  useEffect(() => {
-    if (scrollRef.current) {
-      const container = scrollRef.current;
-      const targetItem = container.querySelectorAll('.nav-scroll-item')[activeIndex];
-      if (targetItem) {
-        const scrollPos = targetItem.offsetLeft - (container.offsetWidth / 2) + (targetItem.offsetWidth / 2);
-        // Instant scroll on mount, smooth scroll on user interaction
-        container.scrollTo({ left: scrollPos, behavior: loading ? 'auto' : 'smooth' });
-      }
-    }
-  }, [activeIndex, loading]);
-
-  const handleScroll = () => {
-    if (!scrollRef.current) return;
-    const container = scrollRef.current;
-    const centerPoint = container.scrollLeft + container.offsetWidth / 2;
-    let closestIndex = 0;
-    let minDistance = Infinity;
-    const items = container.querySelectorAll('.nav-scroll-item');
+  // --- SWIPE HANDLER ---
+  const handleDragEnd = (event, info) => {
+    const currentX = dragX.get();
+    // Find closest index based on X position
+    const closestIndex = Math.round(Math.abs(currentX / ITEM_WIDTH));
+    const clampedIndex = Math.max(0, Math.min(closestIndex, navItems.length - 1));
     
-    items.forEach((item, index) => {
-      const itemCenter = item.offsetLeft + item.offsetWidth / 2;
-      const distance = Math.abs(centerPoint - itemCenter);
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestIndex = index;
-      }
-    });
-
-    if (closestIndex !== activeIndex) {
-      setActiveIndex(closestIndex);
-      haptic.light();
+    const targetX = -(clampedIndex * ITEM_WIDTH);
+    
+    if (clampedIndex !== activeIndex) {
+      haptic.medium();
+      setActiveIndex(clampedIndex);
     }
+
+    // Snap to the target item
+    animate(dragX, targetX, {
+      type: "spring",
+      stiffness: 400,
+      damping: 35
+    });
   };
 
   const formatAmount = (num) => (isGhosted && !showSensitive ? "••••••" : `₹${num.toLocaleString()}`);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden pb-44 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="relative min-h-screen overflow-hidden pb-44 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
+      {/* HEADER */}
       <header className="p-6 pt-12 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-[var(--brand-color)] flex items-center justify-center text-white font-black shadow-xl text-xl">
@@ -126,6 +123,7 @@ const Home = () => {
         </button>
       </header>
 
+      {/* BALANCE CARD */}
       <section className="px-6 mb-8">
         <motion.div 
           layout
@@ -150,6 +148,7 @@ const Home = () => {
         </motion.div>
       </section>
 
+      {/* ACTIVITY LOG */}
       <section className="px-6 mb-10">
         <h3 className="text-[10px] font-black uppercase tracking-widest mb-6 opacity-30" style={{ color: 'var(--text-main)' }}>Recent Pipeline</h3>
         {loading ? (
@@ -161,13 +160,15 @@ const Home = () => {
         )}
       </section>
 
-      {/* --- PREMIUM NAVIGATION DOCK --- */}
+      {/* --- SWIPEABLE PREMIUM DOCK --- */}
       <div className="fixed bottom-8 left-0 right-0 h-24 z-50 flex items-center justify-center pointer-events-none">
+        
+        {/* Background Dock Shell */}
         <div className="absolute w-[92%] h-20 bg-[var(--bg-secondary)]/80 backdrop-blur-2xl rounded-[2.5rem] border border-black/5 shadow-2xl z-10" />
         
+        {/* Fixed Selection Glass (Does not move) */}
         <motion.div 
-          animate={{ scale: activeIndex !== -1 ? 1 : 0.95 }}
-          className="absolute w-16 h-16 rounded-[1.8rem] z-20 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/10" 
+          className="absolute w-16 h-16 rounded-[1.8rem] z-20 border border-white/10" 
           style={{ 
             backgroundColor: 'var(--brand-color)',
             opacity: 0.9,
@@ -175,55 +176,61 @@ const Home = () => {
           }}
         />
 
-        <div 
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="relative z-30 flex items-center overflow-x-auto no-scrollbar w-full h-full cursor-grab active:cursor-grabbing pointer-events-auto"
-          style={{ 
-            scrollSnapType: 'x mandatory', 
-            paddingLeft: 'calc(50% - 40px)', 
-            paddingRight: 'calc(50% - 40px)' 
-          }}
-        >
-          {navItems.map((item, index) => {
-            const isCenter = activeIndex === index;
-            return (
-              <div
-                key={item.id}
-                className="nav-scroll-item flex-shrink-0 w-20 flex flex-col items-center justify-center h-full relative"
-                style={{ scrollSnapAlign: 'center' }}
-                onClick={() => { if (isCenter) { haptic.medium(); navigate(item.path); }}}
-              >
-                <motion.div
-                  animate={{ 
-                    scale: isCenter ? 1.15 : 0.75, 
-                    opacity: isCenter ? 1 : 0.25,
+        {/* Draggable Icon Track */}
+        <div className="relative z-30 w-full h-full flex items-center justify-center pointer-events-auto overflow-visible">
+          <motion.div
+            drag="x"
+            dragConstraints={{
+              left: -((navItems.length - 1) * ITEM_WIDTH),
+              right: 0
+            }}
+            style={{ x: dragX }}
+            onDragEnd={handleDragEnd}
+            className="flex items-center cursor-grab active:cursor-grabbing"
+          >
+            {navItems.map((item, index) => {
+              const isCenter = activeIndex === index;
+              return (
+                <div
+                  key={item.id}
+                  className="w-20 flex-shrink-0 flex flex-col items-center justify-center h-24 relative"
+                  onClick={() => { 
+                    if (isCenter) { 
+                      haptic.medium(); 
+                      navigate(item.path); 
+                    } 
                   }}
-                  transition={smoothSpring}
-                  className="relative z-10"
-                  style={{ color: isCenter ? 'var(--bg-primary)' : 'var(--text-main)' }}
                 >
-                  {item.icon}
-                </motion.div>
-                
-                <AnimatePresence>
-                  {isCenter && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 15, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 30, scale: 1 }}
-                      exit={{ opacity: 0, y: 15, scale: 0.9 }}
-                      transition={smoothSpring}
-                      className="absolute bg-[var(--text-main)] px-3 py-1 rounded-full shadow-lg whitespace-nowrap"
-                    >
-                      <span className="text-[7px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--bg-primary)' }}>
-                        {item.label}
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
+                  <motion.div
+                    animate={{ 
+                      scale: isCenter ? 1.2 : 0.7, 
+                      opacity: isCenter ? 1 : 0.2,
+                    }}
+                    transition={smoothSpring}
+                    style={{ color: isCenter ? 'var(--bg-primary)' : 'var(--text-main)' }}
+                  >
+                    {item.icon}
+                  </motion.div>
+                  
+                  <AnimatePresence>
+                    {isCenter && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 32 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        transition={smoothSpring}
+                        className="absolute bg-[var(--text-main)] px-3 py-1 rounded-full shadow-lg whitespace-nowrap"
+                      >
+                        <span className="text-[7px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--bg-primary)' }}>
+                          {item.label}
+                        </span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </motion.div>
         </div>
       </div>
     </div>
