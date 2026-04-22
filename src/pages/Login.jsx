@@ -125,6 +125,9 @@ const Login = () => {
             <button type="button" className="text-slate-300 text-[10px] uppercase font-black tracking-widest hover:text-slate-500 transition-colors">
               Forgot Security Key?
             </button>
+            <Link to="/register" className="text-slate-300 text-[10px] uppercase font-black tracking-widest hover:text-lime-600 transition-colors">
+              / Create Account
+            </Link>
           </div>
 
           {/* Action Button - Hexagon Pulse */}
