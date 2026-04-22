@@ -1,83 +1,125 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bell, Plus, User, Settings, History, Home as HomeIcon } from 'lucide-react';
 import './App.css';
 
-// Core Pages
+// Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/Home';
 import AddTransaction from './pages/AddTransaction';
 import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-
-// Fintech & Identity Pages
-import History from './pages/History';
+import SettingsPage from './pages/Settings';
+import HistoryPage from './pages/History';
 import Reports from './pages/Reports';
 import Creator from './pages/Creator';
 
-// Utilities
 import { haptic } from './utils/haptics';
 
-// --- 1. THEME ORCHESTRATOR ---
-const ThemeOrchestrator = () => {
+// --- NAVIGATION DOCK COMPONENT ---
+const GlobalDock = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const scrollRef = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(3); // Default 'Home'
+  const isInitialMount = useRef(true);
+
+  const navItems = [
+    { id: 'profile', icon: <User size={22} />, path: '/profile', label: 'Profile' },
+    { id: 'history', icon: <History size={22} />, path: '/history', label: 'History' },
+    { id: 'add', icon: <Plus size={28} />, path: '/add', label: 'Add Entry' },
+    { id: 'home', icon: <HomeIcon size={22} />, path: '/home', label: 'Home' },
+    { id: 'settings', icon: <Settings size={22} />, path: '/settings', label: 'Settings' },
+    { id: 'reports', icon: <Bell size={22} />, path: '/reports', label: 'Reports' },
+  ];
+
   useEffect(() => {
-    const savedTheme = localStorage.getItem('app-theme');
-    if (savedTheme) {
-      try {
-        const theme = JSON.parse(savedTheme);
-        const root = document.documentElement;
-        root.style.setProperty('--brand-color', theme.brand);
-        root.style.setProperty('--bg-primary', theme.bgPrimary);
-        root.style.setProperty('--bg-secondary', theme.bgSecondary || theme.bgPrimary);
-        root.style.setProperty('--text-main', theme.textMain);
-        const brandText = theme.brandText || '#FFFFFF';
-        root.style.setProperty('--brand-text', brandText);
-      } catch (err) {
-        console.error("Theme Sync Error:", err);
+    if (scrollRef.current) {
+      const container = scrollRef.current;
+      const target = container.querySelectorAll('.nav-scroll-item')[activeIndex];
+      if (target) {
+        const offset = target.offsetLeft - (container.offsetWidth / 2) + (target.offsetWidth / 2);
+        container.scrollTo({ left: offset });
       }
     }
+    setTimeout(() => { isInitialMount.current = false; }, 300);
   }, []);
-  return null;
-};
 
-// --- 2. GLOBAL NAVIGATION HAPTICS ---
-const HapticNavigation = () => {
-  const location = useLocation();
-  useEffect(() => {
-    if (location.pathname !== '/') {
+  const handleScroll = () => {
+    if (!scrollRef.current || isInitialMount.current) return;
+    const container = scrollRef.current;
+    const centerPoint = container.scrollLeft + container.offsetWidth / 2;
+    const items = container.querySelectorAll('.nav-scroll-item');
+    
+    let closestIndex = 0;
+    let minDistance = Infinity;
+
+    items.forEach((item, index) => {
+      const itemCenter = item.offsetLeft + item.offsetWidth / 2;
+      const distance = Math.abs(centerPoint - itemCenter);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    if (closestIndex !== activeIndex) {
+      setActiveIndex(closestIndex);
       haptic.light();
+      navigate(navItems[closestIndex].path);
     }
-  }, [location.pathname]);
-  return null;
+  };
+
+  // Don't show dock on Login/Register
+  if (location.pathname === '/' || location.pathname === '/register') return null;
+
+  return (
+    <div className="fixed bottom-8 left-0 right-0 h-24 z-50 flex items-center justify-center pointer-events-none">
+      <div className="absolute w-[92%] h-20 bg-[var(--bg-secondary)]/80 backdrop-blur-2xl rounded-[2.5rem] border border-white/5 shadow-2xl z-10" />
+      <div className="absolute w-16 h-16 rounded-[1.8rem] z-20 border border-white/10" style={{ backgroundColor: 'var(--brand-color)' }} />
+      <div 
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="relative z-30 flex items-center overflow-x-auto no-scrollbar w-full h-full pointer-events-auto"
+        style={{ scrollSnapType: 'x mandatory', paddingLeft: 'calc(50% - 40px)', paddingRight: 'calc(50% - 40px)' }}
+      >
+        {navItems.map((item, index) => (
+          <div key={item.id} className="nav-scroll-item flex-shrink-0 w-20 flex flex-col items-center justify-center h-full relative" style={{ scrollSnapAlign: 'center' }}>
+            <motion.div animate={{ scale: activeIndex === index ? 1.1 : 0.7, opacity: activeIndex === index ? 1 : 0.3 }} style={{ color: activeIndex === index ? 'var(--bg-primary)' : 'var(--text-main)' }}>
+              {item.icon}
+            </motion.div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
+// --- APP MAIN ---
 function App() {
   return (
     <Router>
-      <ThemeOrchestrator />
-      <AppContent />
-    </Router>
-  );
-}
-
-const AppContent = () => {
-  return (
-    <>
-      <HapticNavigation />
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/home" element={<Home />} />
-        <Route path="/add" element={<AddTransaction />} /> 
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/creator" element={<Creator />} />
-        <Route path="/history" element={<History />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={
+          <>
+            <Routes>
+              <Route path="/home" element={<Home />} />
+              <Route path="/add" element={<AddTransaction />} /> 
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/creator" element={<Creator />} />
+            </Routes>
+            <GlobalDock />
+          </>
+        } />
       </Routes>
-    </>
+    </Router>
   );
-};
+}
 
 export default App;
