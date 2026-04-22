@@ -132,6 +132,16 @@ const Register = () => {
             </button>
           </div>
 
+          <div className="flex items-center gap-2">
+            <button 
+              type="button" 
+              onClick={() => { haptic.light(); navigate('/login'); }}
+              className="text-slate-400 text-sm font-bold uppercase tracking-widest hover:text-lime-600 transition-colors"
+            >
+            Login instead
+            </button>
+          </div>
+
           {/* Hexagon Action Button */}
           <div className="flex justify-end pt-6">
             <button 
