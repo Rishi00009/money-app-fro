@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronDown, ArrowRight, Check, Delete } from 'lucide-react';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { X, ChevronDown, ArrowRight, Check, Delete, Loader2 } from 'lucide-react';
 import API from '../utils/api';
-import { haptic } from '../utils/haptics'; // Optimized haptic utility
+import { haptic } from '../utils/haptics';
 
 const AddTransaction = () => {
   const navigate = useNavigate();
@@ -18,9 +18,14 @@ const AddTransaction = () => {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // --- Animation Values for Swipe ---
+  const dragX = useMotionValue(0);
+  // Transition from soft gray to Brand color as user swipes
+  const sliderBg = useTransform(dragX, [0, 200], ['rgba(0,0,0,0.05)', 'var(--brand-color)']);
+  const textOpacity = useTransform(dragX, [0, 100], [0.2, 0]);
+
   const categories = ['Salary', 'Food', 'Rent', 'Transport', 'Cloths', 'Grocery', 'Returnable', 'Returned', 'Electronics', 'Others'];
 
-  // Fetch accounts on mount
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
@@ -29,16 +34,13 @@ const AddTransaction = () => {
           setUserBanks(res.data.banks);
           setSelectedBank(res.data.banks[0]);
         }
-      } catch (err) {
-        console.error("Account fetch failed", err);
-      }
+      } catch (err) { console.error(err); }
     };
     fetchAccounts();
   }, []);
 
-  // Handlers
   const handleNumberClick = (num) => { 
-    haptic.light(); // Pixel mechanical click
+    haptic.light(); 
     if (amount.length < 10) setAmount(prev => prev + num); 
   };
 
@@ -49,27 +51,27 @@ const AddTransaction = () => {
 
   const handleConfirm = async () => {
     if (!amount || !category || (category === 'Others' && !customCategory) || loading) {
-      haptic.error(); // Triple pulse for validation error
+      haptic.error();
+      dragX.set(0); // Snap back on validation failure
       return;
     }
     
     setLoading(true);
-    const transactionData = {
-      type,
-      amount: Number(amount),
-      bank: selectedBank,
-      category: category === 'Others' ? customCategory : category,
-    };
-
     try {
-      await API.post('/transactions/add', transactionData); 
-      haptic.success(); // Secure double-tap feedback
+      await API.post('/transactions/add', {
+        type,
+        amount: Number(amount),
+        bank: selectedBank,
+        category: category === 'Others' ? customCategory : category,
+      }); 
+      haptic.success();
       setIsConfirmed(true);
-      setTimeout(() => navigate('/home'), 1000);
+      setTimeout(() => navigate('/home'), 1200);
     } catch (err) {
       haptic.error();
-      alert("Save Failed: Check Server Connection");
+      alert("Sync Error");
       setLoading(false);
+      dragX.set(0);
     }
   };
 
@@ -80,44 +82,59 @@ const AddTransaction = () => {
       <header className="p-6 pt-12 flex justify-between items-center">
         <button 
           onClick={() => { haptic.light(); navigate('/home'); }} 
-          className="p-3 rounded-2xl bg-black/[0.03] border border-black/[0.05] active:scale-90 transition-transform"
+          className="p-3 rounded-2xl bg-black/[0.03] border border-black/[0.05]"
         >
           <X size={24} style={{ color: 'var(--text-main)' }} />
         </button>
         
-        <div className="flex bg-[var(--bg-secondary)] p-1 rounded-2xl border border-black/[0.05] shadow-inner">
+        <div className="flex bg-[var(--bg-secondary)] p-1 rounded-2xl border border-black/[0.05]">
           <button 
             onClick={() => { haptic.medium(); setType('spend'); }} 
             className={`px-6 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${type === 'spend' ? 'bg-rose-500 text-white shadow-lg' : 'opacity-20'}`}
-          >
-            SPEND
-          </button>
+          >SPEND</button>
           <button 
             onClick={() => { haptic.medium(); setType('income'); }} 
             className={`px-6 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${type === 'income' ? 'bg-emerald-500 text-white shadow-lg' : 'opacity-20'}`}
-          >
-            INCOME
-          </button>
+          >INCOME</button>
         </div>
         <div className="w-10"></div>
       </header>
 
       {/* 2. MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col px-8 pt-4">
-        <div className="text-center mb-10">
-          <p className="text-[10px] uppercase tracking-[0.4em] mb-2 opacity-30 font-bold" style={{ color: 'var(--text-main)' }}>Entry Amount</p>
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-4xl font-light opacity-30" style={{ color: 'var(--brand-color)' }}>₹</span>
-            <h1 className="text-6xl font-black tracking-tighter" style={{ color: 'var(--text-main)' }}>
+        {/* AMOUNT WITH BACKLIGHT */}
+        <div className="text-center mb-10 relative">
+          {/* Backlight Glow effect */}
+          <AnimatePresence>
+            {amount.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 0.15, scale: 1.2 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 blur-[60px] rounded-full self-center justify-self-center w-32 h-32 mx-auto pointer-events-none"
+                style={{ backgroundColor: 'var(--brand-color)' }}
+              />
+            )}
+          </AnimatePresence>
+
+          <p className="text-[10px] uppercase tracking-[0.4em] mb-2 opacity-30 font-black" style={{ color: 'var(--text-main)' }}>Terminal Entry</p>
+          <div className="flex items-center justify-center gap-2 relative z-10">
+            <span className="text-4xl font-black" style={{ color: 'var(--brand-color)' }}>₹</span>
+            <motion.h1 
+              key={amount}
+              initial={{ scale: 1.1 }}
+              animate={{ scale: 1 }}
+              className="text-7xl font-black tracking-tighter" 
+              style={{ color: 'var(--text-main)' }}
+            >
               {amount || '0'}
-            </h1>
+            </motion.h1>
           </div>
         </div>
 
         <div className="space-y-6">
-          {/* Account Selection */}
-          <div className="relative border-b border-black/[0.05] pb-2">
-            <label className="text-[9px] uppercase tracking-widest font-black opacity-30 mb-2 block" style={{ color: 'var(--text-main)' }}>Source / Account</label>
+          <div className="relative border-b-2 border-black/[0.05] pb-2">
+            <label className="text-[9px] uppercase tracking-widest font-black opacity-30 mb-2 block" style={{ color: 'var(--text-main)' }}>Account</label>
             <select 
               className="w-full bg-transparent outline-none font-bold text-lg appearance-none" 
               style={{ color: 'var(--text-main)' }} 
@@ -129,96 +146,81 @@ const AddTransaction = () => {
             <ChevronDown className="absolute right-0 bottom-3 opacity-20 pointer-events-none" size={16} />
           </div>
 
-          {/* Category Selection */}
-          <div className="relative border-b border-black/[0.05] pb-2">
-            <label className="text-[9px] uppercase tracking-widest font-black opacity-30 mb-2 block" style={{ color: 'var(--text-main)' }}>Reason Category</label>
+          <div className="relative border-b-2 border-black/[0.05] pb-2">
+            <label className="text-[9px] uppercase tracking-widest font-black opacity-30 mb-2 block" style={{ color: 'var(--text-main)' }}>Category</label>
             <select 
               className="w-full bg-transparent outline-none font-bold text-lg appearance-none" 
               style={{ color: 'var(--text-main)' }} 
               value={category} 
               onChange={(e) => { haptic.light(); setCategory(e.target.value); }}
             >
-              <option value="" disabled>Select Category</option>
+              <option value="" disabled>Select</option>
               {categories.map(cat => <option key={cat} value={cat} className="text-black">{cat}</option>)}
             </select>
             <ChevronDown className="absolute right-0 bottom-3 opacity-20 pointer-events-none" size={16} />
           </div>
 
-          {/* Custom Category Field */}
-          <AnimatePresence>
-            {category === 'Others' && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-              >
-                <input 
-                  type="text"
-                  placeholder="Type manual reason..."
-                  className="w-full bg-black/[0.03] border border-black/[0.05] p-4 rounded-2xl outline-none font-bold text-sm"
-                  style={{ color: 'var(--text-main)' }}
-                  value={customCategory}
-                  onChange={(e) => setCustomCategory(e.target.value)}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {category === 'Others' && (
+            <motion.input 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              type="text" placeholder="Reason..."
+              className="w-full bg-black/[0.03] p-4 rounded-2xl outline-none font-bold text-sm"
+              style={{ color: 'var(--text-main)' }}
+              value={customCategory} onChange={(e) => setCustomCategory(e.target.value)}
+            />
+          )}
         </div>
       </div>
 
-      {/* 3. NUMPAD & SLIDER */}
-      <div className="p-6 bg-black/[0.02] rounded-t-[3rem] border-t border-black/[0.03]">
-        <div className="grid grid-cols-3 gap-y-2 gap-x-12 mb-8 text-center">
+      {/* 3. NUMPAD & DYNAMIC SLIDER */}
+      <div className="p-6 bg-black/[0.02] rounded-t-[3rem] border-t border-black/[0.05]">
+        <div className="grid grid-cols-3 gap-y-1 mb-8 text-center">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0].map((num) => (
             <button 
               key={num} 
               onClick={() => handleNumberClick(num.toString())} 
-              className="py-4 text-2xl font-bold active:scale-90 transition-transform active:text-[var(--brand-color)]" 
+              className="py-4 text-3xl font-black active:scale-75 transition-transform" 
               style={{ color: 'var(--text-main)' }}
-            >
-              {num}
-            </button>
+            >{num}</button>
           ))}
-          <button 
-            onClick={handleBackspace} 
-            className="py-4 flex items-center justify-center opacity-30 active:scale-75 transition-transform"
-          >
-            <Delete size={24} />
-          </button>
+          <button onClick={handleBackspace} className="py-4 flex items-center justify-center opacity-20 active:scale-75"><Delete size={28} /></button>
         </div>
 
-        {/* Swipe to Commit Slider */}
-        <div className="relative h-18 w-full bg-black/[0.05] rounded-[2.5rem] flex items-center px-2 group">
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 text-[9px] font-black uppercase tracking-[0.4em]">
-            {isConfirmed ? 'Transaction Authorized' : loading ? 'Processing Security...' : 'Swipe to Commit Entry'}
-          </div>
+        {/* SWIPE TO COMMIT WITH DYNAMIC BG */}
+        <motion.div 
+          style={{ backgroundColor: sliderBg }}
+          className="relative h-20 w-full rounded-[2.5rem] flex items-center px-2 overflow-hidden border-2 border-black/5"
+        >
+          <motion.div style={{ opacity: textOpacity }} className="absolute inset-0 flex items-center justify-center pointer-events-none text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">
+            {loading ? 'Authorizing...' : 'Swipe to Commit'}
+          </motion.div>
           
           <motion.div
             drag="x" 
             dragConstraints={{ left: 0, right: 280 }} 
             dragSnapToOrigin={!isConfirmed}
+            style={{ x: dragX }}
             onDragStart={() => haptic.light()}
             onDragEnd={(e, info) => { 
-              if (info.offset.x > 220 && !loading) {
-                handleConfirm();
-              }
+              if (info.offset.x > 220 && !loading) handleConfirm();
+              else haptic.light();
             }}
-            className="z-10 h-14 w-14 rounded-[2rem] flex items-center justify-center cursor-grab active:cursor-grabbing shadow-xl transition-colors"
-            style={{ backgroundColor: isConfirmed ? '#10b981' : 'var(--brand-color)' }}
+            className="z-10 h-16 w-16 rounded-[2rem] flex items-center justify-center cursor-grab active:cursor-grabbing shadow-2xl transition-colors"
+            style={{ backgroundColor: isConfirmed ? '#10b981' : 'var(--bg-secondary)' }}
           >
             <AnimatePresence mode="wait">
               {isConfirmed ? (
                 <motion.div key="check" initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                  <Check className="text-white" size={28} strokeWidth={4} />
+                  <Check className="text-white" size={32} strokeWidth={4} />
                 </motion.div>
+              ) : loading ? (
+                <Loader2 className="animate-spin text-[var(--brand-color)]" size={28} />
               ) : (
-                <motion.div key="arrow" animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>
-                  <ArrowRight className="text-[var(--brand-text)]" size={28} strokeWidth={3} />
-                </motion.div>
+                <ArrowRight style={{ color: 'var(--brand-color)' }} size={32} strokeWidth={3} />
               )}
             </AnimatePresence>
           </motion.div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
