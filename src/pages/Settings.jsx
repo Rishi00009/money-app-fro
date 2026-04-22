@@ -45,7 +45,7 @@ const Settings = () => {
   const presets = [
     { name: 'Mint Fresh', brand: '#A7F3D0', bgPrimary: '#F0FDF4', bgSecondary: '#FFFFFF', textMain: '#064E3B' },
     { name: 'Sky High', brand: '#3B82F6', bgPrimary: '#EFF6FF', bgSecondary: '#FFFFFF', textMain: '#1E3A8A' },
-    { name: 'Forest Deep', brand: '#10B981', bgPrimary: '#064E3B', bgSecondary: '#065F46', textMain: '#ECFDF5' },
+    { name: 'Forest Deep', brand: '#10B981', bgPrimary: '#064E3B', bgSecondary: '#b2fce7', textMain: '#ECFDF5' },
     { name: 'Desert Sun', brand: '#F97316', bgPrimary: '#FFF7ED', bgSecondary: '#FFFFFF', textMain: '#7C2D12' },
     { name: 'Royal Gold', brand: '#FACC15', bgPrimary: '#FEFCE8', bgSecondary: '#FFFFFF', textMain: '#713F12' },
     { name: 'Cyber Dark', brand: '#bef264', bgPrimary: '#0F172A', bgSecondary: '#1E293B', textMain: '#F8FAF9' }
