@@ -27,14 +27,15 @@ const Profile = () => {
     banks: []
   });
 
-  // --- Animation & Swipe Logic ---
+  // --- Theme-Linked Animation Logic ---
   const x = useMotionValue(0);
-  // Text fades as you swipe
   const opacity = useTransform(x, [0, 150], [1, 0]);
-  // Icon turns red as it nears the logout threshold
-  const iconColor = useTransform(x, [0, 180], ["#94a3b8", "#ef4444"]);
-  // Background fill follows the handle
-  const bgWidth = useTransform(x, [0, 220], ["0%", "100%"]);
+  
+  // Color transition: Moss Green (#41644A) -> Sunset Orange (#E9833D)
+  const iconColor = useTransform(x, [0, 180], ["#41644A", "#E9833D"]);
+  
+  // Swipe fill width based on handle position
+  const bgWidth = useTransform(x, [0, 220], ["0px", "260px"]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -89,7 +90,7 @@ const Profile = () => {
       haptic.success();
     } catch (err) {
       haptic.error();
-      alert("Sync Failed: Check connection or file size");
+      alert("Sync Failed: System error or connection lost.");
     } finally {
       setSaving(false);
     }
@@ -123,8 +124,8 @@ const Profile = () => {
   return (
     <div className="min-h-screen pb-32 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
-      {/* 1. Header */}
-      <header className="p-6 pt-12 flex justify-between items-center border-b border-black/5 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0 0 3rem 3rem' }}>
+      {/* 1. HEADER */}
+      <header className="p-6 pt-12 flex justify-between items-center border-b border-black/5" style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0 0 3rem 3rem' }}>
         <button onClick={() => { haptic.light(); navigate('/home'); }} className="p-3 rounded-2xl bg-black/5 active:scale-90 transition-transform">
           <ArrowLeft size={24} style={{ color: 'var(--text-main)' }} />
         </button>
@@ -139,7 +140,7 @@ const Profile = () => {
         </button>
       </header>
 
-      {/* 2. Avatar Profile Section */}
+      {/* 2. AVATAR SECTION */}
       <div className="flex flex-col items-center mt-10 mb-12">
         <div className="relative">
           <div className="w-32 h-32 rounded-[3rem] border-2 flex items-center justify-center overflow-hidden shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--brand-color)' }}>
@@ -161,12 +162,12 @@ const Profile = () => {
       </div>
 
       <section className="px-8 space-y-8">
-        {/* Identity Fields */}
+        {/* Identity Inputs */}
         {[
           { label: 'Legal Identity', icon: <User size={18} />, key: 'name' },
           { label: 'Handle / Alias', icon: <Mail size={18} />, key: 'username' }
         ].map((field) => (
-          <div key={field.key} className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.8 }}>
+          <div key={field.key} className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.6 }}>
             <label className="text-[9px] uppercase font-black tracking-widest block mb-2 opacity-40" style={{ color: 'var(--text-main)' }}>{field.label}</label>
             <div className="flex items-center gap-4">
               <span style={{ color: 'var(--brand-color)' }}>{field.icon}</span>
@@ -180,26 +181,7 @@ const Profile = () => {
           </div>
         ))}
 
-        {/* Password Reset */}
-        <div className="border-b-2 pb-3 transition-colors" style={{ borderColor: 'var(--text-main)', opacity: 0.8 }}>
-          <label className="text-[9px] uppercase font-black tracking-widest block mb-2 opacity-40" style={{ color: 'var(--text-main)' }}>Reset Security Key</label>
-          <div className="flex items-center gap-4">
-            <Lock size={18} style={{ color: 'var(--brand-color)' }} />
-            <input 
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              className="bg-transparent outline-none w-full font-bold text-lg" 
-              style={{ color: 'var(--text-main)' }}
-              value={userData.password}
-              onChange={(e) => setUserData({...userData, password: e.target.value})}
-            />
-            <button onClick={() => { haptic.light(); setShowPassword(!showPassword); }} className="opacity-30" style={{ color: 'var(--text-main)' }}>
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-        </div>
-
-        {/* Global Banks */}
+        {/* Account Management */}
         <div className="space-y-4 pt-4">
           <label className="text-[9px] uppercase font-black tracking-widest block opacity-40" style={{ color: 'var(--text-main)' }}>Linked Global Accounts</label>
           <div className="relative flex items-center">
@@ -243,13 +225,13 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* --- 3. SWIPE TO LOGOUT --- */}
+        {/* --- 3. PILL SWIPE TO LOGOUT --- */}
         <div className="pt-12">
           <label className="text-[9px] uppercase font-black tracking-widest block mb-4 text-center opacity-30" style={{ color: 'var(--text-main)' }}>System Security</label>
           
           <div className="relative w-full h-20 rounded-[2.5rem] flex items-center p-2 overflow-hidden border-2 shadow-inner" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}>
             
-            {/* Background Hint Text */}
+            {/* Hint Text */}
             <motion.div 
               style={{ opacity }}
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
@@ -259,13 +241,13 @@ const Profile = () => {
               </span>
             </motion.div>
 
-            {/* Swipe Progress Fill */}
+            {/* Sunset Orange Swipe Fill */}
             <motion.div 
                className="absolute left-0 top-0 bottom-0 pointer-events-none"
-               style={{ width: bgWidth, backgroundColor: 'rgba(239, 68, 68, 0.05)' }}
+               style={{ width: bgWidth, backgroundColor: 'rgba(233, 131, 61, 0.1)' }} 
             />
 
-            {/* Pill-Shaped Logout Handle */}
+            {/* PILL HANDLE */}
             <motion.div
               drag="x"
               dragConstraints={{ left: 0, right: 220 }}
@@ -279,7 +261,7 @@ const Profile = () => {
                   x.set(0); 
                 }
               }}
-              className="z-10 w-20 h-16 shadow-2xl flex items-center justify-center cursor-grab active:cursor-grabbing border-2"
+              className="z-10 w-24 h-16 shadow-2xl flex items-center justify-center cursor-grab active:cursor-grabbing border-2"
               style={{ 
                 borderRadius: '2rem',
                 backgroundColor: 'var(--bg-secondary)',
