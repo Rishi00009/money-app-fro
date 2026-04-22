@@ -19,23 +19,31 @@ import Creator from './pages/Creator';
 import { haptic } from './utils/haptics';
 
 // --- 1. THEME ORCHESTRATOR ---
-// This ensures the custom colors apply to ALL pages globally
+// Applies custom protocols globally upon boot
 const ThemeOrchestrator = () => {
   useEffect(() => {
-    const savedTheme = localStorage.getItem('user-theme');
+    // SYNCED KEY: Using 'app-theme' to match Settings.jsx
+    const savedTheme = localStorage.getItem('app-theme');
+    
     if (savedTheme) {
-      const theme = JSON.parse(savedTheme);
-      const root = document.documentElement;
-      
-      // Inject the saved colors into CSS variables
-      root.style.setProperty('--brand-color', theme.brand);
-      root.style.setProperty('--bg-primary', theme.bgPrimary);
-      root.style.setProperty('--bg-secondary', theme.bgSecondary);
-      root.style.setProperty('--text-main', theme.textMain);
-      
-      // Optional: Handle Brand Text Contrast (White vs Black)
-      if (theme.brandText) {
-        root.style.setProperty('--brand-text', theme.brandText);
+      try {
+        const theme = JSON.parse(savedTheme);
+        const root = document.documentElement;
+        
+        // Inject the saved colors into CSS variables
+        root.style.setProperty('--brand-color', theme.brand);
+        root.style.setProperty('--bg-primary', theme.bgPrimary);
+        root.style.setProperty('--bg-secondary', theme.bgSecondary || theme.bgPrimary);
+        root.style.setProperty('--text-main', theme.textMain);
+        
+        // Handle Brand Text Contrast (White vs Black)
+        const brandText = theme.brandText || '#FFFFFF';
+        root.style.setProperty('--brand-text', brandText);
+
+        // SYSTEM LOG
+        console.log(`%c Terminal Protocol: ${theme.name} Active `, `background: ${theme.brand}; color: ${brandText}; font-weight: bold;`);
+      } catch (err) {
+        console.error("Theme Sync Error:", err);
       }
     }
   }, []);
@@ -48,8 +56,10 @@ const HapticNavigation = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Triggers the light click on every page transition
-    haptic.light();
+    // Prevent haptic on initial landing, trigger on subsequent navigations
+    if (location.pathname !== '/') {
+      haptic.light();
+    }
   }, [location.pathname]);
 
   return null;
@@ -60,8 +70,18 @@ function App() {
     <Router>
       {/* Essential Global Handlers */}
       <ThemeOrchestrator />
-      <HapticNavigation />
       
+      {/* Internal component to use location hooks */}
+      <AppContent />
+    </Router>
+  );
+}
+
+// Wrapper to allow useLocation() inside Router context
+const AppContent = () => {
+  return (
+    <>
+      <HapticNavigation />
       <Routes>
         {/* Auth Entry Points */}
         <Route path="/" element={<Login />} />
@@ -83,8 +103,8 @@ function App() {
         {/* Universal Catch-all Redirect */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </Router>
+    </>
   );
-}
+};
 
 export default App;
