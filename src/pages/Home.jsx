@@ -21,6 +21,14 @@ const Home = () => {
   const [isGhosted, setIsGhosted] = useState(() => localStorage.getItem('ghost-mode') === 'true');
   const [showSensitive, setShowSensitive] = useState(false); 
 
+  // --- Optimized Spring Config ---
+  const smoothSpring = {
+    type: "spring",
+    stiffness: 350,
+    damping: 25,
+    mass: 0.8
+  };
+
   const getCycleRange = (startDay) => {
     const now = new Date();
     let start = new Date(now.getFullYear(), now.getMonth(), startDay, 0, 0, 0);
@@ -80,6 +88,7 @@ const Home = () => {
     let closestIndex = 0;
     let minDistance = Infinity;
     const items = container.querySelectorAll('.nav-scroll-item');
+    
     items.forEach((item, index) => {
       const itemCenter = item.offsetLeft + item.offsetWidth / 2;
       const distance = Math.abs(centerPoint - itemCenter);
@@ -88,6 +97,7 @@ const Home = () => {
         closestIndex = index;
       }
     });
+
     if (closestIndex !== activeIndex) {
       setActiveIndex(closestIndex);
       haptic.light();
@@ -117,7 +127,8 @@ const Home = () => {
 
       {/* BALANCE CARD */}
       <section className="px-6 mb-8">
-        <div 
+        <motion.div 
+          layout
           onClick={() => { if(isGhosted) { haptic.light(); setShowSensitive(!showSensitive); }}}
           className="p-8 rounded-[3rem] bg-[var(--bg-secondary)] border border-white/5 shadow-2xl relative overflow-hidden active:scale-[0.98] transition-transform cursor-pointer"
         >
@@ -125,7 +136,7 @@ const Home = () => {
             <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 font-black" style={{ color: 'var(--text-main)' }}>Cycle Liquidity</p>
             {isGhosted && <div className="opacity-20" style={{ color: 'var(--text-main)' }}>{showSensitive ? <Eye size={14} /> : <EyeOff size={14} />}</div>}
           </div>
-          <h2 className="text-5xl font-black mb-8 tracking-tighter" style={{ color: 'var(--text-main)' }}>{formatAmount(totals.balance)}</h2>
+          <motion.h2 initial={false} className="text-5xl font-black mb-8 tracking-tighter" style={{ color: 'var(--text-main)' }}>{formatAmount(totals.balance)}</motion.h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col border-r border-white/10 pr-4">
               <span className="text-[9px] uppercase font-black text-emerald-500 mb-1 tracking-widest">Inflow</span>
@@ -136,28 +147,36 @@ const Home = () => {
               <div className="flex items-center gap-1 font-black text-sm tracking-tight" style={{ color: 'var(--text-main)' }}><ArrowDownLeft size={14} className="text-rose-500" /> {formatAmount(totals.spend)}</div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* RECENT ACTIVITY */}
+      {/* ACTIVITY LOG */}
       <section className="px-6 mb-10">
         <h3 className="text-[10px] font-black uppercase tracking-widest mb-6 opacity-30" style={{ color: 'var(--text-main)' }}>Recent Pipeline</h3>
         {loading ? (
           <div className="flex justify-center py-10 opacity-20"><Loader2 className="animate-spin" style={{ color: 'var(--text-main)' }} /></div>
         ) : (
-          transactions.map((tx) => <SwipeItem key={tx._id} emoji={tx.type === 'income' ? "🏦" : "🛒"} label={tx.category} amount={formatAmount(tx.amount)} isIncome={tx.type === 'income'} />)
+          <div className="space-y-4">
+            {transactions.map((tx) => <SwipeItem key={tx._id} emoji={tx.type === 'income' ? "🏦" : "🛒"} label={tx.category} amount={formatAmount(tx.amount)} isIncome={tx.type === 'income'} />)}
+          </div>
         )}
       </section>
 
-      {/* --- REFINED NAVIGATION DOCK --- */}
+      {/* --- PREMIUM NAVIGATION DOCK --- */}
       <div className="fixed bottom-8 left-0 right-0 h-24 z-50 flex items-center justify-center pointer-events-none">
         {/* Background Dock Shell */}
         <div className="absolute w-[92%] h-20 bg-[var(--bg-secondary)]/80 backdrop-blur-2xl rounded-[2.5rem] border border-black/5 shadow-2xl z-10" />
         
-        {/* STATIC GLASS BACKGROUND FOR SELECTED ITEM */}
-        <div 
-          className="absolute w-16 h-16 rounded-[1.8rem] z-20 shadow-xl border border-white/10" 
-          style={{ backgroundColor: 'var(--brand-color)', opacity: 0.9 }}
+        {/* STATIC GLASS HIGHLIGHT - Smoothed with scale transition */}
+        <motion.div 
+          animate={{ scale: activeIndex !== -1 ? 1 : 0.95 }}
+          className="absolute w-16 h-16 rounded-[1.8rem] z-20 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/10" 
+          style={{ 
+            backgroundColor: 'var(--brand-color)',
+            opacity: 0.9,
+            // Custom CSS for high-end glass look
+            boxShadow: `0 0 20px -5px var(--brand-color)`
+          }}
         />
 
         <div 
@@ -181,26 +200,27 @@ const Home = () => {
               >
                 <motion.div
                   animate={{ 
-                    scale: isCenter ? 1.1 : 0.8, 
-                    opacity: isCenter ? 1 : 0.3,
+                    scale: isCenter ? 1.15 : 0.75, 
+                    opacity: isCenter ? 1 : 0.25,
                   }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  transition={smoothSpring}
                   className="relative z-10"
                   style={{ color: isCenter ? 'var(--bg-primary)' : 'var(--text-main)' }}
                 >
                   {item.icon}
                 </motion.div>
                 
-                {/* LABEL POSITIONED FURTHER DOWN */}
+                {/* LABEL REPOSITIONED & SMOOTHED */}
                 <AnimatePresence>
                   {isCenter && (
                     <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 28 }}
-                      exit={{ opacity: 0, y: 20 }}
-                      className="absolute bg-[var(--text-main)] px-3 py-1 rounded-full shadow-lg"
+                      initial={{ opacity: 0, y: 15, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 30, scale: 1 }}
+                      exit={{ opacity: 0, y: 15, scale: 0.9 }}
+                      transition={smoothSpring}
+                      className="absolute bg-[var(--text-main)] px-3 py-1 rounded-full shadow-lg whitespace-nowrap"
                     >
-                      <span className="text-[7px] font-black uppercase tracking-[0.15em]" style={{ color: 'var(--bg-primary)' }}>
+                      <span className="text-[7px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--bg-primary)' }}>
                         {item.label}
                       </span>
                     </motion.div>
@@ -216,7 +236,12 @@ const Home = () => {
 };
 
 const SwipeItem = ({ emoji, label, amount, isIncome = false }) => (
-  <motion.div whileHover={{ scale: 1.01 }} className="bg-[var(--bg-secondary)] p-5 flex justify-between items-center rounded-[2.5rem] border border-black/5 mb-4 shadow-sm mx-2">
+  <motion.div 
+    initial={{ opacity: 0, x: -10 }} 
+    animate={{ opacity: 1, x: 0 }}
+    whileHover={{ scale: 1.01 }} 
+    className="bg-[var(--bg-secondary)] p-5 flex justify-between items-center rounded-[2.5rem] border border-black/5 shadow-sm mx-2"
+  >
     <div className="flex items-center gap-4">
       <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-lg bg-[var(--bg-primary)] shadow-inner">{emoji}</div>
       <div>
