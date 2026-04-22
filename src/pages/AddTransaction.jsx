@@ -5,6 +5,12 @@ import { X, ChevronDown, ArrowRight, Check, Delete, Loader2 } from 'lucide-react
 import API from '../utils/api';
 import { haptic } from '../utils/haptics';
 
+// Moving this OUTSIDE the component ensures it's always defined
+const CATEGORIES = [
+  'Salary', 'Food', 'Rent', 'Transport', 'Cloths', 
+  'Grocery', 'Returnable', 'Returned', 'Electronics', 'Others'
+];
+
 const AddTransaction = () => {
   const navigate = useNavigate();
   
@@ -19,8 +25,6 @@ const AddTransaction = () => {
 
   // --- Animation Values ---
   const dragX = useMotionValue(0);
-  
-  // 1. Swipe color fill: Matches swiped area to brand color
   const swipeWidth = useTransform(dragX, [0, 280], ["0%", "100%"]);
   const textOpacity = useTransform(dragX, [0, 100], [0.3, 0]);
 
@@ -56,7 +60,9 @@ const AddTransaction = () => {
     setLoading(true);
     try {
       await API.post('/transactions/add', {
-        type, amount: Number(amount), bank: selectedBank,
+        type, 
+        amount: Number(amount), 
+        bank: selectedBank,
         category: category === 'Others' ? customCategory : category,
       }); 
       haptic.success();
@@ -131,7 +137,7 @@ const AddTransaction = () => {
               onChange={(e) => { haptic.light(); setCategory(e.target.value); }}
             >
               <option value="" disabled>Select Category</option>
-              {categories.map(cat => <option key={cat} value={cat} className="text-black">{cat}</option>)}
+              {CATEGORIES.map(cat => <option key={cat} value={cat} className="text-black">{cat}</option>)}
             </select>
           </div>
         </div>
@@ -151,10 +157,9 @@ const AddTransaction = () => {
           <button onClick={handleBackspace} className="py-4 flex items-center justify-center opacity-30 active:scale-75"><Delete size={28} style={{ color: 'var(--text-main)' }} /></button>
         </div>
 
-        {/* SWIPE TO COMMIT - AREA COLOR CHANGES ON SWIPE */}
+        {/* SWIPE TO COMMIT */}
         <div className="relative h-20 w-full rounded-[2.5rem] flex items-center p-2 overflow-hidden border-2 shadow-inner" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--bg-secondary)' }}>
           
-          {/* THE SWIPE FILL AREA */}
           <motion.div 
             className="absolute left-0 top-0 bottom-0 pointer-events-none"
             style={{ width: swipeWidth, backgroundColor: 'var(--brand-color)' }}
