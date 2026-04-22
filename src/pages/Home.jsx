@@ -14,12 +14,23 @@ const Home = () => {
   
   const [activeIndex, setActiveIndex] = useState(2); 
   const [userName, setUserName] = useState("User"); 
-  const [totals, setTotals] = useState({ balance: 0, income: 0, spend: 0 });
   const [transactions, setTransactions] = useState([]);
+  const [totals, setTotals] = useState({ balance: 0, income: 0, spend: 0 });
   const [loading, setLoading] = useState(true);
 
+  // Privacy & System States
   const [isGhosted, setIsGhosted] = useState(() => localStorage.getItem('ghost-mode') === 'true');
   const [showSensitive, setShowSensitive] = useState(false); 
+
+  const getCycleRange = (startDay) => {
+    const now = new Date();
+    let start = new Date(now.getFullYear(), now.getMonth(), startDay, 0, 0, 0);
+    if (now.getDate() < startDay) start.setMonth(start.getMonth() - 1);
+    let end = new Date(start);
+    end.setMonth(end.getMonth() + 1);
+    end.setSeconds(end.getSeconds() - 1);
+    return { from: start.toISOString(), to: end.toISOString() };
+  };
 
   useEffect(() => {
     const fetchTerminalData = async () => {
@@ -28,12 +39,10 @@ const Home = () => {
         const startDay = userRes.data.cycleStartDay || 1;
         setUserName(userRes.data.name || "Rishi");
 
-        const now = new Date();
-        let start = new Date(now.getFullYear(), now.getMonth(), startDay);
-        if (now.getDate() < startDay) start.setMonth(start.getMonth() - 1);
-        
-        const res = await API.get('/transactions', { params: { from: start.toISOString() } });
+        const range = getCycleRange(startDay);
+        const res = await API.get('/transactions', { params: range });
         const txs = res.data;
+
         const income = txs.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
         const spend = txs.filter(t => t.type === 'spend').reduce((acc, t) => acc + t.amount, 0);
 
@@ -48,22 +57,23 @@ const Home = () => {
     fetchTerminalData();
   }, [navigate]);
 
+  // nav items array
   const navItems = [
-    { id: 'profile', icon: <User size={22} />, path: '/profile', label: 'Profile' },
-    { id: 'history', icon: <History size={22} />, path: '/history', label: 'History' },
-    { id: 'add', icon: <Plus size={28} />, path: '/add', label: 'Add Entry' },
-    { id: 'settings', icon: <Settings size={22} />, path: '/settings', label: 'Settings' },
-    { id: 'reports', icon: <Bell size={22} />, path: '/reports', label: 'Reports' },
+    { id: 'profile', icon: <User size={24} />, path: '/profile', label: 'Profile' },
+    { id: 'history', icon: <History size={24} />, path: '/history', label: 'History' },
+    { id: 'add', icon: <Plus size={32} />, path: '/add', label: 'Add Entry' },
+    { id: 'settings', icon: <Settings size={24} />, path: '/settings', label: 'Settings' },
+    { id: 'reports', icon: <Bell size={24} />, path: '/reports', label: 'Reports' },
   ];
 
-  // MECHANICAL SCROLL LOGIC
+  // Logic to center the scroller
   useEffect(() => {
     if (scrollRef.current) {
       const container = scrollRef.current;
       const targetItem = container.querySelectorAll('.nav-scroll-item')[activeIndex];
       if (targetItem) {
         const scrollPos = targetItem.offsetLeft - (container.offsetWidth / 2) + (targetItem.offsetWidth / 2);
-        container.scrollTo({ left: scrollPos, behavior: 'smooth' });
+        container.scrollTo({ left: scrollPos });
       }
     }
   }, [activeIndex]);
@@ -75,7 +85,6 @@ const Home = () => {
     let closestIndex = 0;
     let minDistance = Infinity;
     const items = container.querySelectorAll('.nav-scroll-item');
-    
     items.forEach((item, index) => {
       const itemCenter = item.offsetLeft + item.offsetWidth / 2;
       const distance = Math.abs(centerPoint - itemCenter);
@@ -84,17 +93,18 @@ const Home = () => {
         closestIndex = index;
       }
     });
+    if (closestIndex !== activeIndex) setActiveIndex(closestIndex);
+  };
 
-    if (closestIndex !== activeIndex) {
-      setActiveIndex(closestIndex);
-      haptic.light(); 
-    }
+  const formatAmount = (num) => {
+    if (isGhosted && !showSensitive) return "••••••";
+    return `₹${num.toLocaleString()}`;
   };
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden pb-44 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="relative min-h-screen overflow-x-hidden pb-52 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
-      {/* HEADER & BALANCE (Same as previous) */}
+      {/* HEADER */}
       <header className="p-6 pt-12 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-[var(--brand-color)] flex items-center justify-center text-white font-black shadow-xl text-xl">
@@ -105,29 +115,81 @@ const Home = () => {
             <h1 className="text-xl font-black uppercase tracking-tight" style={{ color: 'var(--text-main)' }}>{userName}</h1>
           </div>
         </div>
-        <button onClick={() => navigate('/reports')} className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-white/5 shadow-lg">
+        <button onClick={() => navigate('/reports')} className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-white/5 shadow-lg active:scale-95 transition-transform">
           <Bell size={20} style={{ color: 'var(--text-main)' }} />
         </button>
       </header>
 
-      {/* BALANCE SECTION */}
+      {/* BALANCE CARD */}
       <section className="px-6 mb-8">
-        <div className="p-8 rounded-[3rem] bg-[var(--bg-secondary)] border border-white/5 shadow-2xl relative overflow-hidden" onClick={() => isGhosted && setShowSensitive(!showSensitive)}>
-          <h2 className="text-5xl font-black tracking-tighter" style={{ color: 'var(--text-main)' }}>
-            {isGhosted && !showSensitive ? "••••••" : `₹${totals.balance.toLocaleString()}`}
+        <div 
+          onClick={() => { if(isGhosted) { haptic.light(); setShowSensitive(!showSensitive); }}}
+          className="p-8 rounded-[3rem] bg-[var(--bg-secondary)] border border-white/5 shadow-2xl relative overflow-hidden group active:scale-[0.98] transition-transform cursor-pointer"
+        >
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] opacity-40 font-black" style={{ color: 'var(--text-main)' }}>Cycle Liquidity</p>
+            {isGhosted && (
+              <div className="opacity-20" style={{ color: 'var(--text-main)' }}>
+                {showSensitive ? <Eye size={14} /> : <EyeOff size={14} />}
+              </div>
+            )}
+          </div>
+          <h2 className="text-5xl font-black mb-8 tracking-tighter" style={{ color: 'var(--text-main)' }}>
+            {formatAmount(totals.balance)}
           </h2>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col border-r border-white/10 pr-4">
+              <span className="text-[9px] uppercase font-black text-emerald-500 mb-1 tracking-widest">Inflow</span>
+              <div className="flex items-center gap-1 font-black text-sm tracking-tight" style={{ color: 'var(--text-main)' }}>
+                <ArrowUpRight size={14} className="text-emerald-500" /> {formatAmount(totals.income)}
+              </div>
+            </div>
+            <div className="flex flex-col pl-4">
+              <span className="text-[9px] uppercase font-black text-rose-500 mb-1 tracking-widest">Outflow</span>
+              <div className="flex items-center gap-1 font-black text-sm tracking-tight" style={{ color: 'var(--text-main)' }}>
+                <ArrowDownLeft size={14} className="text-rose-500" /> {formatAmount(totals.spend)}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* --- SMOOTH GLASS DOCK --- */}
-      <div className="fixed bottom-6 left-0 right-0 h-28 z-50 flex items-center justify-center">
-        {/* Main Dock Container */}
-        <div className="absolute w-[94%] h-24 bg-[var(--bg-secondary)]/40 backdrop-blur-3xl rounded-[3rem] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.2)] z-10" />
+      {/* ACTIVITY LOG */}
+      <section className="px-6 mb-10">
+        <h3 className="text-[10px] font-black uppercase tracking-widest mb-6 opacity-30" style={{ color: 'var(--text-main)' }}>Recent Pipeline</h3>
+        {loading ? (
+          <div className="flex justify-center py-10 opacity-20"><Loader2 className="animate-spin" style={{ color: 'var(--text-main)' }} /></div>
+        ) : transactions.length > 0 ? (
+          transactions.map((tx) => (
+            <SwipeItem 
+              key={tx._id} 
+              emoji={tx.type === 'income' ? "🏦" : "🛒"} 
+              label={tx.category} 
+              amount={formatAmount(tx.amount)}
+              isIncome={tx.type === 'income'}
+            />
+          ))
+        ) : (
+          <div className="text-center py-12 rounded-[2.5rem] border-2 border-dashed border-white/5 opacity-30">
+            <p className="text-[10px] uppercase tracking-widest font-black" style={{ color: 'var(--text-main)' }}>No ledger data for this cycle</p>
+          </div>
+        )}
+      </section>
 
+      {/* FIXED BOTTOM NAV BAR AREA */}
+      <div className="fixed bottom-0 left-0 right-0 h-40 z-50">
+        {/* Visual elements container (does not block clicks) */}
+        <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+            <div className="absolute bottom-12 w-20 h-20 rounded-[2.5rem] bg-[var(--brand-color)] shadow-2xl z-0 opacity-20" />
+            <div className="absolute bottom-10 w-[92%] h-24 bg-[var(--bg-secondary)]/80 backdrop-blur-3xl rounded-[3.2rem] border border-white/10 z-[-1] shadow-2xl" />
+        </div>
+
+        {/* Scrollable container (ALLOWS CLICKS) */}
         <div 
           ref={scrollRef}
           onScroll={handleScroll}
-          className="relative z-30 flex items-center overflow-x-auto no-scrollbar w-full h-full cursor-grab active:cursor-grabbing"
+          className="relative flex items-center overflow-x-auto no-scrollbar w-full h-full cursor-grab active:cursor-grabbing pb-10"
           style={{ 
             scrollSnapType: 'x mandatory', 
             paddingLeft: 'calc(50% - 40px)', 
@@ -139,72 +201,65 @@ const Home = () => {
             return (
               <div
                 key={item.id}
-                className="nav-scroll-item flex-shrink-0 w-20 flex flex-col items-center justify-center h-full relative"
+                className="nav-scroll-item flex-shrink-0 w-20 flex flex-col items-center justify-center h-full"
                 style={{ scrollSnapAlign: 'center' }}
-                onClick={() => { if (isCenter) { haptic.medium(); navigate(item.path); }}}
+                onClick={() => {
+                   if (isCenter) {
+                     haptic.light();
+                     navigate(item.path);
+                   }
+                }}
               >
-                {/* GLASS BACKGROUND FOR SELECTED */}
-                <motion.div
-                  initial={false}
-                  animate={{ 
-                    scale: isCenter ? 1 : 0.6,
-                    opacity: isCenter ? 1 : 0,
-                    rotate: isCenter ? 0 : -15
-                  }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  className="absolute w-16 h-16 rounded-[1.8rem] z-0 shadow-xl border border-white/20"
-                  style={{ 
-                    // The "Glass" Look: Semi-transparent theme color + blur
-                    backgroundColor: 'var(--brand-color)',
-                    filter: 'brightness(1.1)',
-                    boxShadow: `0 10px 20px -5px var(--brand-color)`
-                  }}
-                />
-
                 <motion.div
                   animate={{ 
-                    scale: isCenter ? 1.1 : 0.75,
-                    opacity: isCenter ? 1 : 0.3,
-                    y: isCenter ? -2 : 0
+                    scale: isCenter ? 1.2 : 0.6, 
+                    opacity: isCenter ? 1 : 0.2,
+                    y: isCenter ? -10 : 0
                   }}
-                  className="relative z-10"
-                  style={{ color: isCenter ? 'var(--bg-primary)' : 'var(--text-main)' }}
+                  className={`flex items-center justify-center z-10 ${isCenter ? 'text-[var(--brand-color)]' : 'text-[var(--text-main)]'}`}
                 >
                   {item.icon}
                 </motion.div>
-                
-                {/* FLOATING LABEL */}
-                <AnimatePresence>
-                  {isCenter && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.8 }}
-                      animate={{ opacity: 1, y: 5, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.8 }}
-                      className="absolute top-20 bg-[var(--text-main)] px-4 py-1.5 rounded-full shadow-2xl"
-                    >
-                      <span className="text-[7px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--bg-primary)' }}>
-                        {item.label}
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
             );
           })}
+        </div>
+
+        {/* Label Display */}
+        <div className="absolute bottom-4 left-0 right-0 pointer-events-none flex items-center justify-center">
+          <AnimatePresence mode='wait'>
+            <motion.div
+              key={navItems[activeIndex].id}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="bg-[var(--text-main)] px-4 py-1.5 rounded-full shadow-2xl"
+            >
+              <span className="text-[8px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--bg-primary)' }}>
+                {navItems[activeIndex].label}
+              </span>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </div>
   );
 };
 
-// ... SwipeItem Helper stays same
 const SwipeItem = ({ emoji, label, amount, isIncome = false }) => (
-  <motion.div className="bg-[var(--bg-secondary)] p-5 flex justify-between items-center rounded-[2.5rem] border border-white/5 mb-4 shadow-sm mx-2">
+  <motion.div whileHover={{ scale: 1.02 }} className="bg-[var(--bg-secondary)] p-5 flex justify-between items-center rounded-[2.5rem] border border-white/5 mb-4 shadow-xl mx-2">
     <div className="flex items-center gap-4">
-      <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-lg bg-[var(--bg-primary)] shadow-inner">{emoji}</div>
-      <p className="font-black text-sm tracking-tight text-[var(--text-main)]">{label}</p>
+      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl bg-[var(--bg-primary)] shadow-inner">
+        {emoji}
+      </div>
+      <div>
+        <p className="font-black text-sm tracking-tight text-[var(--text-main)]">{label}</p>
+        <p className="text-[9px] uppercase opacity-30 font-black tracking-widest">Verified Entry</p>
+      </div>
     </div>
-    <p className={`font-black text-lg tracking-tighter ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>{amount}</p>
+    <p className={`font-black text-lg tracking-tighter ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
+      {amount}
+    </p>
   </motion.div>
 );
 
