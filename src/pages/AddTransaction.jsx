@@ -5,7 +5,6 @@ import { X, ChevronDown, ArrowRight, Check, Delete, Loader2 } from 'lucide-react
 import API from '../utils/api';
 import { haptic } from '../utils/haptics';
 
-// Moving this OUTSIDE the component ensures it's always defined
 const CATEGORIES = [
   'Salary', 'Food', 'Rent', 'Transport', 'Cloths', 
   'Grocery', 'Returnable', 'Returned', 'Electronics', 'Others'
@@ -23,7 +22,6 @@ const AddTransaction = () => {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // --- Animation Values ---
   const dragX = useMotionValue(0);
   const swipeWidth = useTransform(dragX, [0, 280], ["0%", "100%"]);
   const textOpacity = useTransform(dragX, [0, 100], [0.3, 0]);
@@ -116,7 +114,6 @@ const AddTransaction = () => {
           </div>
         </div>
 
-        {/* INPUT FIELDS */}
         <div className="mt-12 space-y-6">
           <div className="border-b-2 pb-2" style={{ borderColor: 'var(--text-main)', opacity: 0.1 }}>
             <select 
@@ -147,22 +144,38 @@ const AddTransaction = () => {
       <div className="p-6 rounded-t-[3.5rem] border-t shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)' }}>
         <div className="grid grid-cols-3 gap-y-2 mb-8 text-center">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0].map((num) => (
-            <button 
+            <motion.button 
               key={num} 
+              whileTap={{ 
+                scale: 0.85, 
+                backgroundColor: 'var(--brand-color)',
+                color: 'var(--bg-secondary)' 
+              }}
               onClick={() => handleNumberClick(num.toString())} 
-              className="py-4 text-3xl font-black active:scale-75 transition-transform" 
+              className="py-4 text-3xl font-black rounded-2xl transition-colors duration-100" 
               style={{ color: 'var(--text-main)' }}
-            >{num}</button>
+            >{num}</motion.button>
           ))}
-          <button onClick={handleBackspace} className="py-4 flex items-center justify-center opacity-30 active:scale-75"><Delete size={28} style={{ color: 'var(--text-main)' }} /></button>
+          <motion.button 
+            whileTap={{ scale: 0.7, color: '#ef4444' }}
+            onClick={handleBackspace} 
+            className="py-4 flex items-center justify-center opacity-30"
+          >
+            <Delete size={28} style={{ color: 'var(--text-main)' }} />
+          </motion.button>
         </div>
 
         {/* SWIPE TO COMMIT */}
         <div className="relative h-20 w-full rounded-[2.5rem] flex items-center p-2 overflow-hidden border-2 shadow-inner" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--bg-secondary)' }}>
           
+          {/* THE SWIPE FILL AREA - Paints from the left */}
           <motion.div 
-            className="absolute left-0 top-0 bottom-0 pointer-events-none"
-            style={{ width: swipeWidth, backgroundColor: 'var(--brand-color)' }}
+            className="absolute left-0 top-0 bottom-0 pointer-events-none origin-left"
+            style={{ 
+              width: swipeWidth, 
+              backgroundColor: 'var(--brand-color)',
+              opacity: 0.6 
+            }}
           />
 
           <motion.div style={{ opacity: textOpacity }} className="absolute inset-0 flex items-center justify-center pointer-events-none text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: 'var(--text-main)' }}>
