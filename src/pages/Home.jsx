@@ -12,6 +12,7 @@ const Home = () => {
   const navigate = useNavigate();
   const scrollRef = useRef(null);
   
+  // Index 2 corresponds to the "Add Entry" (Plus) button in navItems
   const [activeIndex, setActiveIndex] = useState(2); 
   const [userName, setUserName] = useState("User"); 
   const [transactions, setTransactions] = useState([]);
@@ -21,13 +22,20 @@ const Home = () => {
   const [isGhosted, setIsGhosted] = useState(() => localStorage.getItem('ghost-mode') === 'true');
   const [showSensitive, setShowSensitive] = useState(false); 
 
-  // --- Optimized Spring Config ---
   const smoothSpring = {
     type: "spring",
     stiffness: 350,
     damping: 25,
     mass: 0.8
   };
+
+  const navItems = [
+    { id: 'profile', icon: <User size={22} />, path: '/profile', label: 'Profile' },
+    { id: 'history', icon: <History size={22} />, path: '/history', label: 'History' },
+    { id: 'add', icon: <Plus size={28} />, path: '/add', label: 'Add Entry' },
+    { id: 'settings', icon: <Settings size={22} />, path: '/settings', label: 'Settings' },
+    { id: 'reports', icon: <Bell size={22} />, path: '/reports', label: 'Reports' },
+  ];
 
   const getCycleRange = (startDay) => {
     const now = new Date();
@@ -62,24 +70,18 @@ const Home = () => {
     fetchTerminalData();
   }, [navigate]);
 
-  const navItems = [
-    { id: 'profile', icon: <User size={22} />, path: '/profile', label: 'Profile' },
-    { id: 'history', icon: <History size={22} />, path: '/history', label: 'History' },
-    { id: 'add', icon: <Plus size={28} />, path: '/add', label: 'Add Entry' },
-    { id: 'settings', icon: <Settings size={22} />, path: '/settings', label: 'Settings' },
-    { id: 'reports', icon: <Bell size={22} />, path: '/reports', label: 'Reports' },
-  ];
-
+  // Handle auto-scroll to the "Add Entry" button on mount and index change
   useEffect(() => {
     if (scrollRef.current) {
       const container = scrollRef.current;
       const targetItem = container.querySelectorAll('.nav-scroll-item')[activeIndex];
       if (targetItem) {
         const scrollPos = targetItem.offsetLeft - (container.offsetWidth / 2) + (targetItem.offsetWidth / 2);
-        container.scrollTo({ left: scrollPos, behavior: 'smooth' });
+        // Instant scroll on mount, smooth scroll on user interaction
+        container.scrollTo({ left: scrollPos, behavior: loading ? 'auto' : 'smooth' });
       }
     }
-  }, [activeIndex]);
+  }, [activeIndex, loading]);
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -109,7 +111,6 @@ const Home = () => {
   return (
     <div className="relative min-h-screen overflow-x-hidden pb-44 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
-      {/* HEADER */}
       <header className="p-6 pt-12 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-[var(--brand-color)] flex items-center justify-center text-white font-black shadow-xl text-xl">
@@ -125,7 +126,6 @@ const Home = () => {
         </button>
       </header>
 
-      {/* BALANCE CARD */}
       <section className="px-6 mb-8">
         <motion.div 
           layout
@@ -150,7 +150,6 @@ const Home = () => {
         </motion.div>
       </section>
 
-      {/* ACTIVITY LOG */}
       <section className="px-6 mb-10">
         <h3 className="text-[10px] font-black uppercase tracking-widest mb-6 opacity-30" style={{ color: 'var(--text-main)' }}>Recent Pipeline</h3>
         {loading ? (
@@ -164,17 +163,14 @@ const Home = () => {
 
       {/* --- PREMIUM NAVIGATION DOCK --- */}
       <div className="fixed bottom-8 left-0 right-0 h-24 z-50 flex items-center justify-center pointer-events-none">
-        {/* Background Dock Shell */}
         <div className="absolute w-[92%] h-20 bg-[var(--bg-secondary)]/80 backdrop-blur-2xl rounded-[2.5rem] border border-black/5 shadow-2xl z-10" />
         
-        {/* STATIC GLASS HIGHLIGHT - Smoothed with scale transition */}
         <motion.div 
           animate={{ scale: activeIndex !== -1 ? 1 : 0.95 }}
           className="absolute w-16 h-16 rounded-[1.8rem] z-20 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/10" 
           style={{ 
             backgroundColor: 'var(--brand-color)',
             opacity: 0.9,
-            // Custom CSS for high-end glass look
             boxShadow: `0 0 20px -5px var(--brand-color)`
           }}
         />
@@ -210,7 +206,6 @@ const Home = () => {
                   {item.icon}
                 </motion.div>
                 
-                {/* LABEL REPOSITIONED & SMOOTHED */}
                 <AnimatePresence>
                   {isCenter && (
                     <motion.div
