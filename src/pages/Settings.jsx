@@ -1,180 +1,143 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { 
-  ArrowLeft, Palette, Smartphone, Check, 
-  UserCircle, Pipette, RefreshCw, ChevronRight 
-} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Check, Sun, Moon, Palette } from 'lucide-react';
 import { haptic } from '../utils/haptics';
 
 const Settings = () => {
   const navigate = useNavigate();
-  
-  // --- Theme State ---
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('user-theme');
-    return saved ? JSON.parse(saved) : {
-      name: 'Rishi Light',
-      brand: '#bef264',
-      bgPrimary: '#F8F9FA',
-      bgSecondary: '#FFFFFF',
-      textMain: '#0f172a'
-    };
+
+  // Monochrome Presets
+  const presets = {
+    light: [
+      { name: 'Pure White', brand: '#000000', bgPrimary: '#FFFFFF', bgSecondary: '#F5F5F5', textMain: '#000000', brandText: '#FFFFFF' },
+      { name: 'Soft Gray', brand: '#4B5563', bgPrimary: '#F9FAFB', bgSecondary: '#FFFFFF', textMain: '#111827', brandText: '#FFFFFF' },
+      { name: 'Silver Ink', brand: '#000000', bgPrimary: '#E5E7EB', bgSecondary: '#F3F4F6', textMain: '#1F2937', brandText: '#FFFFFF' }
+    ],
+    dark: [
+      { name: 'Onyx Black', brand: '#FFFFFF', bgPrimary: '#000000', bgSecondary: '#0A0A0A', textMain: '#FFFFFF', brandText: '#000000' },
+      { name: 'Midnight', brand: '#F3F4F6', bgPrimary: '#18181B', bgSecondary: '#27272A', textMain: '#FAFAFA', brandText: '#18181B' },
+      { name: 'Charcoal', brand: '#9CA3AF', bgPrimary: '#111827', bgSecondary: '#1F2937', textMain: '#F9FAFB', brandText: '#111827' },
+      { name: 'Obsidian', brand: '#FFFFFF', bgPrimary: '#09090B', bgSecondary: '#18181B', textMain: '#E4E4E7', brandText: '#09090B' }
+    ]
+  };
+
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    const saved = localStorage.getItem('app-theme');
+    return saved ? JSON.parse(saved) : presets.light[0];
   });
 
-  const [hapticsEnabled, setHapticsEnabled] = useState(() => {
-    return localStorage.getItem('haptic-enabled') !== 'false';
-  });
+  const applyTheme = (theme) => {
+    haptic.medium();
+    setCurrentTheme(theme);
+    localStorage.setItem('app-theme', JSON.stringify(theme));
 
-  // --- Apply Theme to CSS Variables ---
-  useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--brand-color', theme.brand);
     root.style.setProperty('--bg-primary', theme.bgPrimary);
     root.style.setProperty('--bg-secondary', theme.bgSecondary);
     root.style.setProperty('--text-main', theme.textMain);
-    
-    localStorage.setItem('user-theme', JSON.stringify(theme));
-  }, [theme]);
-
-  const updateColor = (key, val) => {
-    setTheme(prev => ({ ...prev, [key]: val, name: 'Custom' }));
+    root.style.setProperty('--brand-text', theme.brandText || '#FFFFFF');
   };
 
-  // --- New Color Palettes ---
-  const presets = [
-    { name: 'Mint Fresh', brand: '#A7F3D0', bgPrimary: '#F0FDF4', bgSecondary: '#FFFFFF', textMain: '#064E3B' },
-    { name: 'Sky High', brand: '#3B82F6', bgPrimary: '#EFF6FF', bgSecondary: '#FFFFFF', textMain: '#1E3A8A' },
-    { name: 'Forest Deep', brand: '#41644A', bgPrimary: '#F1F0E9', bgSecondary: '#ffffff', textMain: '#263A29', brandText: '#F1F0E9'},
-    { name: 'Desert Sun', brand: '#F97316', bgPrimary: '#FFF7ED', bgSecondary: '#FFFFFF', textMain: '#7C2D12' },
-    { name: 'Royal Gold', brand: '#FACC15', bgPrimary: '#FEFCE8', bgSecondary: '#FFFFFF', textMain: '#713F12' },
-    { name: 'Cyber Dark', brand: '#bef264', bgPrimary: '#0F172A', bgSecondary: '#1E293B', textMain: '#F8FAF9' }
-  ];
-
   return (
-    <div className="min-h-screen pb-20 select-none transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="min-h-screen pb-20 transition-colors duration-500 select-none" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
-      {/* Header */}
-      <header className="p-6 pt-12 flex justify-between items-center">
-        <button 
-          onClick={() => { haptic.light(); navigate('/home'); }} 
-          className="p-3 rounded-2xl bg-black/[0.03] border border-black/[0.05] active:scale-90 transition-transform"
-        >
+      {/* HEADER */}
+      <header className="p-6 pt-12 flex justify-between items-center border-b border-black/5" style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0 0 3rem 3rem' }}>
+        <button onClick={() => { haptic.light(); navigate('/home'); }} className="p-3 rounded-2xl bg-black/5 active:scale-90 transition-transform">
           <ArrowLeft size={24} style={{ color: 'var(--text-main)' }} />
         </button>
-        <h1 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: 'var(--text-main)' }}>Terminal Config</h1>
-        <button onClick={() => setTheme(presets[0])} className="p-3 opacity-20 hover:opacity-100">
-          <RefreshCw size={18} style={{ color: 'var(--text-main)' }} />
-        </button>
+        <h1 className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-main)' }}>Visual Terminal</h1>
+        <div className="w-12"></div>
       </header>
 
-      {/* New Presets Section */}
-      <section className="px-6 mt-4">
-        <div className="flex items-center gap-3 mb-6">
-          <Palette size={18} className="text-[var(--brand-color)]" />
-          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40" style={{ color: 'var(--text-main)' }}>Master Palettes</h2>
-        </div>
-
-        <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-          {presets.map((p) => (
-            <button 
-              key={p.name}
-              onClick={() => { haptic.medium(); setTheme(p); }}
-              className="flex-shrink-0 w-28 p-4 rounded-[2.5rem] border-2 transition-all active:scale-95 shadow-sm"
-              style={{ 
-                backgroundColor: p.bgSecondary,
-                borderColor: theme.name === p.name ? 'var(--brand-color)' : 'transparent'
-              }}
-            >
-              <div className="flex flex-col gap-1 mb-3">
-                <div className="w-full h-2 rounded-full" style={{ backgroundColor: p.brand }} />
-                <div className="w-full h-2 rounded-full opacity-20" style={{ backgroundColor: p.textMain }} />
-              </div>
-              <p className="text-[8px] font-black uppercase tracking-widest text-center" style={{ color: p.textMain }}>{p.name}</p>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Manual Palette Controls */}
-      <section className="px-6 mt-8">
-        <div className="flex items-center gap-3 mb-6">
-          <Pipette size={18} className="text-[var(--brand-color)]" />
-          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40" style={{ color: 'var(--text-main)' }}>Manual Overrides</h2>
-        </div>
-
-        <div className="space-y-3">
-          <ColorInput label="Primary Brand" value={theme.brand} onChange={(v) => updateColor('brand', v)} />
-          <ColorInput label="Background" value={theme.bgPrimary} onChange={(v) => updateColor('bgPrimary', v)} />
-          <ColorInput label="Surface / Card" value={theme.bgSecondary} onChange={(v) => updateColor('bgSecondary', v)} />
-          <ColorInput label="Typography" value={theme.textMain} onChange={(v) => updateColor('textMain', v)} />
-        </div>
-      </section>
-
-      {/* System Preferences */}
-      <section className="px-6 mt-10">
-        <div 
-          onClick={() => {
-            const newState = !hapticsEnabled;
-            setHapticsEnabled(newState);
-            localStorage.setItem('haptic-enabled', newState);
-            if (newState) haptic.medium();
-          }}
-          className="flex items-center justify-between p-5 rounded-[2rem] border border-black/[0.03] shadow-sm bg-white"
-          style={{ backgroundColor: 'var(--bg-secondary)' }}
-        >
-          <div className="flex items-center gap-4">
-            <Smartphone size={20} className="opacity-40" style={{ color: 'var(--text-main)' }} />
-            <span className="font-black text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-main)' }}>Haptic Feedback</span>
+      <div className="p-6 space-y-10">
+        
+        {/* CURRENT ACTIVE PREVIEW */}
+        <section>
+          <div className="flex items-center gap-2 mb-4 opacity-30">
+            <Palette size={14} style={{ color: 'var(--text-main)' }} />
+            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-main)' }}>Active Configuration</span>
           </div>
-          <div className={`w-12 h-6 rounded-full relative transition-all duration-500 ${hapticsEnabled ? 'bg-[var(--brand-color)]' : 'bg-slate-200'}`}>
-            <motion.div 
-              animate={{ x: hapticsEnabled ? 24 : 4 }}
-              className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-md" 
-            />
+          <div className="p-8 rounded-[2.5rem] border-2 flex flex-col items-center justify-center gap-4 shadow-xl" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--brand-color)' }}>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: 'var(--brand-color)' }}>
+                <Check size={32} style={{ color: 'var(--brand-text)' }} />
+            </div>
+            <h2 className="text-xl font-black uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>{currentTheme.name}</h2>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Account Navigation */}
-      <section className="px-6 mt-6">
-         <button 
-          onClick={() => { haptic.light(); navigate('/profile'); }}
-          className="w-full p-6 border border-black/[0.03] rounded-[2.5rem] flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm"
-          style={{ backgroundColor: 'var(--bg-secondary)' }}
-         >
-           <div className="flex items-center gap-4">
-              <div className="p-3 bg-[var(--brand-color)] rounded-2xl">
-                <UserCircle size={24} className="text-black" />
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>Security & Profile</p>
-              </div>
-           </div>
-           <ChevronRight size={20} className="opacity-20" style={{ color: 'var(--text-main)' }} />
-         </button>
-      </section>
+        {/* LIGHT MODES */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-2 opacity-30">
+            <Sun size={14} style={{ color: 'var(--text-main)' }} />
+            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-main)' }}>Light Modes</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {presets.light.map((t) => (
+              <ThemeCard 
+                key={t.name} 
+                theme={t} 
+                isActive={currentTheme.name === t.name} 
+                onClick={() => applyTheme(t)} 
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* DARK MODES */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-2 opacity-30">
+            <Moon size={14} style={{ color: 'var(--text-main)' }} />
+            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-main)' }}>Dark Modes</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {presets.dark.map((t) => (
+              <ThemeCard 
+                key={t.name} 
+                theme={t} 
+                isActive={currentTheme.name === t.name} 
+                onClick={() => applyTheme(t)} 
+              />
+            ))}
+          </div>
+        </section>
+
+      </div>
     </div>
   );
 };
 
-// --- Custom Components ---
+// HELPER COMPONENT: Theme Card
+const ThemeCard = ({ theme, isActive, onClick }) => {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      className={`relative p-4 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-3 shadow-sm ${isActive ? 'scale-105' : 'opacity-80'}`}
+      style={{ 
+        backgroundColor: theme.bgSecondary, 
+        borderColor: isActive ? theme.brand : 'transparent' 
+      }}
+    >
+      {/* Small UI Preview inside card */}
+      <div className="w-full h-12 rounded-2xl flex items-center justify-around overflow-hidden border border-black/5" style={{ backgroundColor: theme.bgPrimary }}>
+        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.brand }} />
+        <div className="w-10 h-2 rounded-full" style={{ backgroundColor: theme.textMain, opacity: 0.2 }} />
+      </div>
+      
+      <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: theme.textMain }}>
+        {theme.name}
+      </span>
 
-const ColorInput = ({ label, value, onChange }) => (
-  <div className="flex items-center justify-between p-5 rounded-[2rem] border border-black/[0.03] bg-white shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-    <div className="flex flex-col">
-      <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-30 mb-1" style={{ color: 'var(--text-main)' }}>{label}</span>
-      <span className="text-[10px] font-mono font-bold uppercase" style={{ color: 'var(--text-main)' }}>{value}</span>
-    </div>
-    <div className="relative w-12 h-12 rounded-2xl shadow-inner overflow-hidden border-2 border-black/[0.05]">
-      <input 
-        type="color" 
-        value={value} 
-        onChange={(e) => { haptic.light(); onChange(e.target.value); }}
-        className="absolute inset-0 w-[200%] h-[200%] -top-1/2 -left-1/2 cursor-pointer"
-      />
-    </div>
-  </div>
-);
+      {isActive && (
+        <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center shadow-md" style={{ backgroundColor: theme.brand }}>
+          <Check size={12} style={{ color: theme.brandText }} strokeWidth={4} />
+        </div>
+      )}
+    </motion.button>
+  );
+};
 
 export default Settings;
