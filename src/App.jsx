@@ -61,10 +61,11 @@ const GlobalDock = ({ activeIndex, setActiveIndex }) => {
       const target = container.querySelectorAll('.nav-scroll-item')[activeIndex];
       if (target) {
         const offset = target.offsetLeft - (container.offsetWidth / 2) + (target.offsetWidth / 2);
-        container.scrollTo({ left: offset });
+        container.scrollTo({ left: offset, behavior: isInitialMount.current ? 'auto' : 'smooth' });
       }
     }
-    setTimeout(() => { isInitialMount.current = false; }, 300);
+    const timer = setTimeout(() => { isInitialMount.current = false; }, 300);
+    return () => clearTimeout(timer);
   }, [activeIndex]);
 
   const handleScroll = () => {
@@ -92,7 +93,9 @@ const GlobalDock = ({ activeIndex, setActiveIndex }) => {
     }
   };
 
-  if (location.pathname === '/' || location.pathname === '/register') return null;
+  // Hide dock on Auth pages
+  const hideDock = ['/', '/register'].includes(location.pathname);
+  if (hideDock) return null;
 
   return (
     <div className="fixed bottom-8 left-0 right-0 h-24 z-50 flex items-center justify-center pointer-events-none">
@@ -118,10 +121,10 @@ const GlobalDock = ({ activeIndex, setActiveIndex }) => {
 
 // --- APP CONTENT GATEKEEPER ---
 const AppContent = () => {
+  const location = useLocation();
   const [isLocked, setIsLocked] = useState(() => localStorage.getItem('security-enabled') === 'true');
   const [activeIndex, setActiveIndex] = useState(3);
 
-  // Home App Feature: Re-lock when app is minimized/closed
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && localStorage.getItem('security-enabled') === 'true') {
@@ -137,32 +140,45 @@ const AppContent = () => {
     setIsLocked(false);
   };
 
-  if (isLocked) {
-    return <LockScreen onUnlock={handleUnlock} />;
-  }
+  // Do not show lock on Login or Register pages
+  const isAuthPage = ['/', '/register'].includes(location.pathname);
 
   return (
-    <>
-      <ThemeOrchestrator />
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="*" element={
-          <>
-            <Routes>
-              <Route path="/home" element={<Home />} />
-              <Route path="/add" element={<AddTransaction />} /> 
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/creator" element={<Creator />} />
-            </Routes>
-            <GlobalDock activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
-          </>
-        } />
-      </Routes>
-    </>
+    <AnimatePresence mode="wait">
+      {isLocked && !isAuthPage ? (
+        <motion.div 
+          key="lock-screen"
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9999]"
+        >
+          <LockScreen onUnlock={handleUnlock} />
+        </motion.div>
+      ) : (
+        <motion.div 
+          key="app-content"
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }}
+          className="min-h-screen"
+        >
+          <ThemeOrchestrator />
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/home" element={<Home />} />
+            <Route path="/add" element={<AddTransaction />} /> 
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/creator" element={<Creator />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+          <GlobalDock activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
