@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ShieldCheck, Fingerprint } from 'lucide-react';
 import { haptic } from '../utils/haptics';
 
 const LockScreen = ({ onUnlock }) => {
   const [pin, setPin] = useState("");
   const [isError, setIsError] = useState(false);
-  const MASTER_PIN = "1234"; 
+  
+  // --- Dynamic Security Retrieval ---
+  // Pulls the PIN and Bio ID saved during the Settings setup phase
+  const SAVED_PIN = localStorage.getItem('user-pin') || "1234"; 
+  const SAVED_BIO_ID = localStorage.getItem('biometric-credential-id');
 
   const handleInput = (num) => {
     if (pin.length >= 4 || isError) return;
@@ -16,7 +20,7 @@ const LockScreen = ({ onUnlock }) => {
     haptic.light();
 
     if (newPin.length === 4) {
-      if (newPin === MASTER_PIN) {
+      if (newPin === SAVED_PIN) {
         haptic.success();
         setTimeout(() => onUnlock(), 300);
       } else {
@@ -30,46 +34,43 @@ const LockScreen = ({ onUnlock }) => {
     }
   };
 
-  // --- STRICT BIOMETRIC AUTHENTICATION ---
+  // --- SECURE BIOMETRIC VERIFICATION ---
   const handleBiometricAuth = async () => {
     haptic.medium();
 
-    if (!window.PublicKeyCredential) {
-      alert("Biometrics not supported on this browser.");
+    if (!SAVED_BIO_ID) {
+      alert("Biometric setup required in Settings.");
       return;
     }
 
     try {
-      // 1. Check for hardware availability
-      const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      // 1. Convert the Base64 saved ID back to a Uint8Array
+      const rawId = Uint8Array.from(atob(SAVED_BIO_ID), c => c.charCodeAt(0));
       
-      if (!available) {
-        alert("Biometrics not set up on this device.");
-        return;
-      }
-
-      // 2. Perform actual verification challenge
-      // This forces the OS to check for a VALID fingerprint match
-      const challenge = new Uint8Array(32); // Mock challenge
+      // 2. Generate a random challenge
+      const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
 
       const authOptions = {
         publicKey: {
           challenge: challenge,
+          allowCredentials: [{
+            id: rawId,
+            type: 'public-key',
+          }],
+          userVerification: "required", // Forces Fingerprint/FaceID prompt
           timeout: 60000,
-          userVerification: "required", // Forces the biometric check
         }
       };
 
-      // The browser will wait here until the Fingerprint/FaceID is SUCCESSFUL
-      const credential = await navigator.credentials.get(authOptions);
+      // 3. Request verification from the OS
+      const assertion = await navigator.credentials.get(authOptions);
 
-      if (credential) {
+      if (assertion) {
         haptic.success();
         onUnlock();
       }
     } catch (err) {
-      // If the fingerprint is WRONG or cancelled, it falls here
       console.error("Biometric Auth Failed:", err);
       haptic.heavy();
       setIsError(true);
@@ -94,10 +95,10 @@ const LockScreen = ({ onUnlock }) => {
         </motion.div>
 
         <h2 className="text-2xl font-black uppercase tracking-tighter mb-2" style={{ color: 'var(--text-main)' }}>
-          {isError ? "Access Denied" : "Security Shield"}
+          {isError ? "Access Denied" : "Secure Entry"}
         </h2>
         <p className="text-[10px] opacity-40 uppercase font-black tracking-[0.3em] mb-12" style={{ color: 'var(--text-main)' }}>
-          {isError ? "Verification Failed" : "Protocol Required"}
+          {isError ? "Invalid Protocol" : "Authorization Required"}
         </p>
 
         {/* PIN INDICATORS */}
@@ -133,16 +134,22 @@ const LockScreen = ({ onUnlock }) => {
           ))}
         </div>
 
-        {/* BIOMETRIC BUTTON */}
-        <motion.button 
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={handleBiometricAuth}
-          className="mt-12 p-4 rounded-full bg-[var(--bg-secondary)] border border-white/5 shadow-xl opacity-80 hover:opacity-100 transition-opacity" 
-          style={{ color: 'var(--brand-color)' }}
-        >
-          <Fingerprint size={40} />
-        </motion.button>
+        {/* BIOMETRIC BUTTON - Only visible/active if setup was completed */}
+        <AnimatePresence>
+          {SAVED_BIO_ID && (
+            <motion.button 
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleBiometricAuth}
+              className="mt-12 p-4 rounded-full bg-[var(--bg-secondary)] border border-white/5 shadow-xl" 
+              style={{ color: 'var(--brand-color)' }}
+            >
+              <Fingerprint size={40} />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );

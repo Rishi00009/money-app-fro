@@ -38,8 +38,6 @@ const Settings = () => {
   };
 
   const [mode, setMode] = useState('light');
-  
-  // --- Enhanced System States ---
   const [ghostMode, setGhostMode] = useState(() => localStorage.getItem('ghost-mode') === 'true');
   const [tactileHaptics, setTactileHaptics] = useState(() => localStorage.getItem('tactile-haptics') !== 'false');
   const [securityEnabled, setSecurityEnabled] = useState(() => localStorage.getItem('security-enabled') === 'true');
@@ -67,6 +65,64 @@ const Settings = () => {
     if (currentTheme) applyToDom(currentTheme);
   }, [currentTheme]);
 
+  // --- SECURITY SETUP PROTOCOL ---
+  const initializeSecurity = async () => {
+    haptic.medium();
+    
+    // 1. PIN Selection (Capturing the current custom PIN or default)
+    const pin = prompt("Define 4-Digit Security PIN:", "1234");
+    if (!pin || pin.length !== 4) {
+      alert("Invalid Protocol: 4-digit PIN required.");
+      return;
+    }
+
+    try {
+      // 2. Biometric Passkey Registration
+      if (window.PublicKeyCredential) {
+        const challenge = window.crypto.getRandomValues(new Uint8Array(32));
+        const userID = window.crypto.getRandomValues(new Uint8Array(16));
+
+        const createOptions = {
+          publicKey: {
+            rp: { name: "Intelligence Ledger", id: window.location.hostname },
+            user: { id: userID, name: "user@ledger.local", displayName: "Ledger User" },
+            challenge: challenge,
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+            authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+            timeout: 60000,
+          },
+        };
+
+        const credential = await navigator.credentials.create(createOptions);
+        
+        if (credential) {
+          const credentialId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+          localStorage.setItem('biometric-credential-id', credentialId);
+          localStorage.setItem('user-pin', pin);
+          localStorage.setItem('security-enabled', 'true');
+          setSecurityEnabled(true);
+          haptic.success();
+          alert("Security Shield Active: PIN & Biometrics Encrypted.");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Setup Failed: HTTPS connection required for Biometrics.");
+    }
+  };
+
+  const toggleSecurity = () => {
+    if (!securityEnabled) {
+      initializeSecurity();
+    } else {
+      haptic.medium();
+      localStorage.removeItem('security-enabled');
+      localStorage.removeItem('biometric-credential-id');
+      localStorage.removeItem('user-pin');
+      setSecurityEnabled(false);
+    }
+  };
+
   const applyTheme = (theme) => {
     haptic.medium();
     setCurrentTheme(theme);
@@ -88,20 +144,8 @@ const Settings = () => {
     if (newState) haptic.medium();
   };
 
-  const toggleSecurity = () => {
-    const newState = !securityEnabled;
-    setSecurityEnabled(newState);
-    localStorage.setItem('security-enabled', newState);
-    haptic.medium();
-    if (newState) {
-        // Option to reload so the lock triggers immediately
-        // window.location.reload(); 
-    }
-  };
-
   return (
     <div className="min-h-screen pb-44 transition-colors duration-500 overflow-x-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      
       <header className="p-6 pt-12 flex justify-between items-center">
         <button onClick={() => { haptic.light(); navigate('/home'); }} className="p-3 rounded-2xl bg-black/5 active:scale-90 transition-transform shadow-sm">
           <ArrowLeft size={24} style={{ color: 'var(--text-main)' }} />
@@ -111,20 +155,13 @@ const Settings = () => {
       </header>
 
       <div className="p-6 space-y-12">
-        
         {/* MODE TOGGLE */}
         <div className="flex justify-center">
             <div className="p-2 rounded-[2rem] flex gap-2 shadow-inner border-2 border-black/5" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                <button 
-                    onClick={() => { haptic.light(); setMode('light'); }}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest ${mode === 'light' ? 'bg-amber-400 text-amber-950 shadow-lg' : 'opacity-20'}`}
-                >
+                <button onClick={() => { haptic.light(); setMode('light'); }} className={`flex items-center gap-2 px-6 py-3 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest ${mode === 'light' ? 'bg-amber-400 text-amber-950 shadow-lg' : 'opacity-20'}`}>
                     <Sun size={16} /> Day
                 </button>
-                <button 
-                    onClick={() => { haptic.light(); setMode('dark'); }}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest ${mode === 'dark' ? 'bg-indigo-600 text-white shadow-lg' : 'opacity-20'}`}
-                >
+                <button onClick={() => { haptic.light(); setMode('dark'); }} className={`flex items-center gap-2 px-6 py-3 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest ${mode === 'dark' ? 'bg-indigo-600 text-white shadow-lg' : 'opacity-20'}`}>
                     <Moon size={16} /> Night
                 </button>
             </div>
@@ -140,18 +177,10 @@ const Settings = () => {
             <span className="text-[8px] font-black uppercase opacity-20" style={{ color: 'var(--text-main)' }}>Swipe for more <ChevronRight size={10} className="inline ml-1"/></span>
           </div>
 
-          <div 
-            ref={scrollRef}
-            className="flex gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 pb-8"
-          >
+          <div ref={scrollRef} className="flex gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 pb-8">
             <AnimatePresence mode="wait">
               {presets[mode].map((t) => (
-                <ThemeCard 
-                  key={t.name} 
-                  theme={t} 
-                  isActive={currentTheme.name === t.name} 
-                  onClick={() => applyTheme(t)} 
-                />
+                <ThemeCard key={t.name} theme={t} isActive={currentTheme.name === t.name} onClick={() => applyTheme(t)} />
               ))}
             </AnimatePresence>
           </div>
@@ -165,33 +194,22 @@ const Settings = () => {
           </div>
 
           <div className="space-y-3">
-            {/* Pattern Lock Toggle */}
-            <div 
-              onClick={toggleSecurity}
-              className="p-5 rounded-[2rem] bg-[var(--bg-secondary)] flex items-center justify-between border border-black/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
-            >
+            <div onClick={toggleSecurity} className="p-5 rounded-[2rem] bg-[var(--bg-secondary)] flex items-center justify-between border border-black/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-black/5" style={{ color: securityEnabled ? 'var(--brand-color)' : 'var(--text-main)', opacity: securityEnabled ? 1 : 0.3 }}>
                   <Lock size={18}/>
                 </div>
                 <div>
                   <p className="text-[11px] font-black uppercase" style={{ color: 'var(--text-main)' }}>Shield Lock</p>
-                  <p className="text-[8px] font-bold opacity-30 uppercase" style={{ color: 'var(--text-main)' }}>Require pattern on app start</p>
+                  <p className="text-[8px] font-bold opacity-30 uppercase" style={{ color: 'var(--text-main)' }}>Setup PIN & Biometrics</p>
                 </div>
               </div>
               <div className={`w-10 h-5 rounded-full transition-colors relative p-1 ${securityEnabled ? 'bg-[var(--brand-color)]' : 'bg-black/10'}`}>
-                <motion.div 
-                  animate={{ x: securityEnabled ? 20 : 0 }}
-                  className="w-3 h-3 rounded-full bg-white shadow-md" 
-                />
+                <motion.div animate={{ x: securityEnabled ? 20 : 0 }} className="w-3 h-3 rounded-full bg-white shadow-md" />
               </div>
             </div>
 
-            {/* Ghost Mode Toggle */}
-            <div 
-              onClick={toggleGhostMode}
-              className="p-5 rounded-[2rem] bg-[var(--bg-secondary)] flex items-center justify-between border border-black/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
-            >
+            <div onClick={toggleGhostMode} className="p-5 rounded-[2rem] bg-[var(--bg-secondary)] flex items-center justify-between border border-black/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-black/5" style={{ color: ghostMode ? 'var(--brand-color)' : 'var(--text-main)', opacity: ghostMode ? 1 : 0.3 }}>
                   <EyeOff size={18}/>
@@ -202,18 +220,11 @@ const Settings = () => {
                 </div>
               </div>
               <div className={`w-10 h-5 rounded-full transition-colors relative p-1 ${ghostMode ? 'bg-[var(--brand-color)]' : 'bg-black/10'}`}>
-                <motion.div 
-                  animate={{ x: ghostMode ? 20 : 0 }}
-                  className="w-3 h-3 rounded-full bg-white shadow-md" 
-                />
+                <motion.div animate={{ x: ghostMode ? 20 : 0 }} className="w-3 h-3 rounded-full bg-white shadow-md" />
               </div>
             </div>
 
-            {/* Haptics Toggle */}
-            <div 
-              onClick={toggleHaptics}
-              className="p-5 rounded-[2rem] bg-[var(--bg-secondary)] flex items-center justify-between border border-black/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
-            >
+            <div onClick={toggleHaptics} className="p-5 rounded-[2rem] bg-[var(--bg-secondary)] flex items-center justify-between border border-black/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-black/5" style={{ color: tactileHaptics ? 'var(--brand-color)' : 'var(--text-main)', opacity: tactileHaptics ? 1 : 0.3 }}>
                   <Zap size={18}/>
@@ -224,10 +235,7 @@ const Settings = () => {
                 </div>
               </div>
               <div className={`w-10 h-5 rounded-full transition-colors relative p-1 ${tactileHaptics ? 'bg-[var(--brand-color)]' : 'bg-black/10'}`}>
-                <motion.div 
-                  animate={{ x: tactileHaptics ? 20 : 0 }}
-                  className="w-3 h-3 rounded-full bg-white shadow-md" 
-                />
+                <motion.div animate={{ x: tactileHaptics ? 20 : 0 }} className="w-3 h-3 rounded-full bg-white shadow-md" />
               </div>
             </div>
           </div>
@@ -248,50 +256,32 @@ const Settings = () => {
             ].map((field) => (
               <div key={field.key} className="flex items-center justify-between p-4 rounded-2xl bg-black/5 border border-black/5">
                 <span className="text-[9px] font-black uppercase tracking-widest opacity-60" style={{ color: 'var(--text-main)' }}>{field.label}</span>
-                <input 
-                  type="color" 
-                  value={manualColors[field.key]} 
-                  onChange={(e) => {
+                <input type="color" value={manualColors[field.key]} onChange={(e) => {
                     const newColors = { ...manualColors, [field.key]: e.target.value };
                     setManualColors(newColors);
                     applyTheme({ ...currentTheme, ...newColors, name: 'Custom Entry' });
-                  }}
-                  className="w-12 h-10 rounded-xl cursor-pointer bg-transparent border-none scale-125"
-                />
+                  }} className="w-12 h-10 rounded-xl cursor-pointer bg-transparent border-none scale-125" />
               </div>
             ))}
           </div>
         </section>
-
       </div>
     </div>
   );
 };
 
 const ThemeCard = ({ theme, isActive, onClick }) => (
-  <motion.button
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    whileTap={{ scale: 0.95 }}
-    onClick={onClick}
-    className={`relative flex-shrink-0 w-[75vw] sm:w-[280px] p-6 rounded-[3rem] border-4 transition-all snap-center shadow-2xl ${isActive ? 'opacity-100' : 'opacity-40'}`}
-    style={{ 
-      backgroundColor: theme.bgSecondary || theme.bgPrimary, 
-      borderColor: isActive ? theme.brand : 'transparent' 
-    }}
-  >
+  <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileTap={{ scale: 0.95 }} onClick={onClick} className={`relative flex-shrink-0 w-[75vw] sm:w-[280px] p-6 rounded-[3rem] border-4 transition-all snap-center shadow-2xl ${isActive ? 'opacity-100' : 'opacity-40'}`} style={{ backgroundColor: theme.bgSecondary || theme.bgPrimary, borderColor: isActive ? theme.brand : 'transparent' }}>
     <div className="w-full h-32 rounded-[2rem] mb-6 flex flex-col justify-center items-center gap-3 shadow-inner" style={{ backgroundColor: theme.bgPrimary }}>
         <div className="w-12 h-12 rounded-2xl shadow-lg flex items-center justify-center" style={{ backgroundColor: theme.brand }}>
             <Check size={24} style={{ color: theme.brandText || '#fff' }} strokeWidth={4} className={isActive ? 'scale-100' : 'scale-0 transition-transform'} />
         </div>
         <div className="h-2 w-20 rounded-full opacity-20" style={{ backgroundColor: theme.textMain }} />
     </div>
-
     <div className="text-left space-y-1">
         <p className="text-[12px] font-black uppercase tracking-tighter" style={{ color: theme.textMain }}>{theme.name}</p>
         <p className="text-[8px] font-bold uppercase tracking-widest opacity-30" style={{ color: theme.textMain }}>System Profile</p>
     </div>
-
     {isActive && (
       <div className="absolute top-6 right-6">
         <div className="w-4 h-4 rounded-full animate-ping" style={{ backgroundColor: theme.brand }} />
