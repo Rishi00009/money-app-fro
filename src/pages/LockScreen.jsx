@@ -22,7 +22,6 @@ const LockScreen = ({ onUnlock }) => {
       } else {
         haptic.heavy();
         setIsError(true);
-        // Shake effect timing
         setTimeout(() => {
           setPin("");
           setIsError(false);
@@ -31,7 +30,7 @@ const LockScreen = ({ onUnlock }) => {
     }
   };
 
-  // --- NATIVE BIOMETRIC HANDLER ---
+  // --- STRICT BIOMETRIC AUTHENTICATION ---
   const handleBiometricAuth = async () => {
     haptic.medium();
 
@@ -41,19 +40,40 @@ const LockScreen = ({ onUnlock }) => {
     }
 
     try {
-      // Check if the device has biometric hardware enabled
+      // 1. Check for hardware availability
       const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
       
-      if (available) {
-        // In a PWA, this triggers the system's Fingerprint/FaceID dialogue
-        // Note: For a local app lock, we proceed if the platform auth is successful
+      if (!available) {
+        alert("Biometrics not set up on this device.");
+        return;
+      }
+
+      // 2. Perform actual verification challenge
+      // This forces the OS to check for a VALID fingerprint match
+      const challenge = new Uint8Array(32); // Mock challenge
+      window.crypto.getRandomValues(challenge);
+
+      const authOptions = {
+        publicKey: {
+          challenge: challenge,
+          timeout: 60000,
+          userVerification: "required", // Forces the biometric check
+        }
+      };
+
+      // The browser will wait here until the Fingerprint/FaceID is SUCCESSFUL
+      const credential = await navigator.credentials.get(authOptions);
+
+      if (credential) {
         haptic.success();
         onUnlock();
-      } else {
-        alert("Biometrics not set up on this device.");
       }
     } catch (err) {
-      console.error("Auth Error:", err);
+      // If the fingerprint is WRONG or cancelled, it falls here
+      console.error("Biometric Auth Failed:", err);
+      haptic.heavy();
+      setIsError(true);
+      setTimeout(() => setIsError(false), 500);
     }
   };
 
@@ -77,7 +97,7 @@ const LockScreen = ({ onUnlock }) => {
           {isError ? "Access Denied" : "Security Shield"}
         </h2>
         <p className="text-[10px] opacity-40 uppercase font-black tracking-[0.3em] mb-12" style={{ color: 'var(--text-main)' }}>
-          {isError ? "Invalid Neural Pattern" : "Protocol Required"}
+          {isError ? "Verification Failed" : "Protocol Required"}
         </p>
 
         {/* PIN INDICATORS */}
