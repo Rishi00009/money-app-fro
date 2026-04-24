@@ -14,15 +14,15 @@ import SettingsPage from './pages/Settings';
 import HistoryPage from './pages/History';
 import Reports from './pages/Reports';
 import Creator from './pages/Creator';
+import LockScreen from './pages/LockScreen'; // Import the new LockScreen
 
 import { haptic } from './utils/haptics';
 
 // --- NAVIGATION DOCK COMPONENT ---
-const GlobalDock = () => {
+const GlobalDock = ({ activeIndex, setActiveIndex }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef(null);
-  const [activeIndex, setActiveIndex] = useState(3); // Default 'Home'
   const isInitialMount = useRef(true);
 
   const navItems = [
@@ -44,7 +44,7 @@ const GlobalDock = () => {
       }
     }
     setTimeout(() => { isInitialMount.current = false; }, 300);
-  }, []);
+  }, [activeIndex]);
 
   const handleScroll = () => {
     if (!scrollRef.current || isInitialMount.current) return;
@@ -71,7 +71,6 @@ const GlobalDock = () => {
     }
   };
 
-  // Don't show dock on Login/Register
   if (location.pathname === '/' || location.pathname === '/register') return null;
 
   return (
@@ -96,10 +95,22 @@ const GlobalDock = () => {
   );
 };
 
-// --- APP MAIN ---
-function App() {
+// --- APP CONTENT GATEKEEPER ---
+const AppContent = () => {
+  const [isLocked, setIsLocked] = useState(() => localStorage.getItem('security-enabled') === 'true');
+  const [activeIndex, setActiveIndex] = useState(3); // Shared state for dock
+
+  const handleUnlock = () => {
+    haptic.medium();
+    setIsLocked(false);
+  };
+
+  if (isLocked) {
+    return <LockScreen onUnlock={handleUnlock} />;
+  }
+
   return (
-    <Router>
+    <>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -114,10 +125,18 @@ function App() {
               <Route path="/reports" element={<Reports />} />
               <Route path="/creator" element={<Creator />} />
             </Routes>
-            <GlobalDock />
+            <GlobalDock activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
           </>
         } />
       </Routes>
+    </>
+  );
+};
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }
