@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Check, Sun, Moon, Palette, Sliders, 
-  ChevronRight, EyeOff, Zap, ShieldCheck 
+  ChevronRight, EyeOff, Zap, ShieldCheck, Lock 
 } from 'lucide-react';
 import { haptic } from '../utils/haptics';
 
@@ -42,6 +42,7 @@ const Settings = () => {
   // --- Enhanced System States ---
   const [ghostMode, setGhostMode] = useState(() => localStorage.getItem('ghost-mode') === 'true');
   const [tactileHaptics, setTactileHaptics] = useState(() => localStorage.getItem('tactile-haptics') !== 'false');
+  const [securityEnabled, setSecurityEnabled] = useState(() => localStorage.getItem('security-enabled') === 'true');
 
   const [currentTheme, setCurrentTheme] = useState(() => {
     const saved = localStorage.getItem('app-theme');
@@ -87,8 +88,19 @@ const Settings = () => {
     if (newState) haptic.medium();
   };
 
+  const toggleSecurity = () => {
+    const newState = !securityEnabled;
+    setSecurityEnabled(newState);
+    localStorage.setItem('security-enabled', newState);
+    haptic.medium();
+    if (newState) {
+        // Option to reload so the lock triggers immediately
+        // window.location.reload(); 
+    }
+  };
+
   return (
-    <div className="min-h-screen pb-32 transition-colors duration-500 overflow-x-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="min-h-screen pb-44 transition-colors duration-500 overflow-x-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
       
       <header className="p-6 pt-12 flex justify-between items-center">
         <button onClick={() => { haptic.light(); navigate('/home'); }} className="p-3 rounded-2xl bg-black/5 active:scale-90 transition-transform shadow-sm">
@@ -145,7 +157,7 @@ const Settings = () => {
           </div>
         </section>
 
-        {/* NEW: SECURITY & SYSTEM CONTROLS */}
+        {/* SECURITY & SYSTEM CONTROLS */}
         <section className="space-y-4 px-2">
           <div className="flex items-center gap-2 opacity-30">
             <ShieldCheck size={14} style={{ color: 'var(--text-main)' }} />
@@ -153,6 +165,28 @@ const Settings = () => {
           </div>
 
           <div className="space-y-3">
+            {/* Pattern Lock Toggle */}
+            <div 
+              onClick={toggleSecurity}
+              className="p-5 rounded-[2rem] bg-[var(--bg-secondary)] flex items-center justify-between border border-black/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-black/5" style={{ color: securityEnabled ? 'var(--brand-color)' : 'var(--text-main)', opacity: securityEnabled ? 1 : 0.3 }}>
+                  <Lock size={18}/>
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase" style={{ color: 'var(--text-main)' }}>Shield Lock</p>
+                  <p className="text-[8px] font-bold opacity-30 uppercase" style={{ color: 'var(--text-main)' }}>Require pattern on app start</p>
+                </div>
+              </div>
+              <div className={`w-10 h-5 rounded-full transition-colors relative p-1 ${securityEnabled ? 'bg-[var(--brand-color)]' : 'bg-black/10'}`}>
+                <motion.div 
+                  animate={{ x: securityEnabled ? 20 : 0 }}
+                  className="w-3 h-3 rounded-full bg-white shadow-md" 
+                />
+              </div>
+            </div>
+
             {/* Ghost Mode Toggle */}
             <div 
               onClick={toggleGhostMode}

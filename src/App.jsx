@@ -14,9 +14,30 @@ import SettingsPage from './pages/Settings';
 import HistoryPage from './pages/History';
 import Reports from './pages/Reports';
 import Creator from './pages/Creator';
-import LockScreen from './pages/LockScreen'; // Import the new LockScreen
+import LockScreen from './pages/LockScreen';
 
 import { haptic } from './utils/haptics';
+
+// --- THEME ORCHESTRATOR ---
+const ThemeOrchestrator = () => {
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('app-theme');
+    if (savedTheme) {
+      try {
+        const theme = JSON.parse(savedTheme);
+        const root = document.documentElement;
+        root.style.setProperty('--brand-color', theme.brand);
+        root.style.setProperty('--bg-primary', theme.bgPrimary);
+        root.style.setProperty('--bg-secondary', theme.bgSecondary || theme.bgPrimary);
+        root.style.setProperty('--text-main', theme.textMain);
+        root.style.setProperty('--brand-text', theme.brandText || '#FFFFFF');
+      } catch (err) {
+        console.error("Theme Sync Error:", err);
+      }
+    }
+  }, []);
+  return null;
+};
 
 // --- NAVIGATION DOCK COMPONENT ---
 const GlobalDock = ({ activeIndex, setActiveIndex }) => {
@@ -98,7 +119,18 @@ const GlobalDock = ({ activeIndex, setActiveIndex }) => {
 // --- APP CONTENT GATEKEEPER ---
 const AppContent = () => {
   const [isLocked, setIsLocked] = useState(() => localStorage.getItem('security-enabled') === 'true');
-  const [activeIndex, setActiveIndex] = useState(3); // Shared state for dock
+  const [activeIndex, setActiveIndex] = useState(3);
+
+  // Home App Feature: Re-lock when app is minimized/closed
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && localStorage.getItem('security-enabled') === 'true') {
+        setIsLocked(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   const handleUnlock = () => {
     haptic.medium();
@@ -111,6 +143,7 @@ const AppContent = () => {
 
   return (
     <>
+      <ThemeOrchestrator />
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
