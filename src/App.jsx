@@ -16,7 +16,9 @@ import Reports from './pages/Reports';
 import Creator from './pages/Creator';
 import LockScreen from './pages/LockScreen';
 
+// Utils
 import { haptic } from './utils/haptics';
+import API from './utils/api'; // Smart API with interceptors
 
 // --- THEME ORCHESTRATOR ---
 const ThemeOrchestrator = () => {
@@ -39,7 +41,7 @@ const ThemeOrchestrator = () => {
   return null;
 };
 
-// --- NAVIGATION DOCK COMPONENT ---
+// --- GLOBAL NAVIGATION DOCK ---
 const GlobalDock = ({ activeIndex, setActiveIndex }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,12 +49,12 @@ const GlobalDock = ({ activeIndex, setActiveIndex }) => {
   const isInitialMount = useRef(true);
 
   const navItems = [
-    { id: 'profile', icon: <User size={22} />, path: '/profile', label: 'Profile' },
-    { id: 'history', icon: <History size={22} />, path: '/history', label: 'History' },
-    { id: 'add', icon: <Plus size={28} />, path: '/add', label: 'Add Entry' },
-    { id: 'home', icon: <HomeIcon size={22} />, path: '/home', label: 'Home' },
-    { id: 'settings', icon: <Settings size={22} />, path: '/settings', label: 'Settings' },
-    { id: 'reports', icon: <Bell size={22} />, path: '/reports', label: 'Reports' },
+    { id: 'profile', icon: <User size={22} />, path: '/profile' },
+    { id: 'history', icon: <History size={22} />, path: '/history' },
+    { id: 'add', icon: <Plus size={28} />, path: '/add' },
+    { id: 'home', icon: <HomeIcon size={22} />, path: '/home' },
+    { id: 'settings', icon: <Settings size={22} />, path: '/settings' },
+    { id: 'reports', icon: <Bell size={22} />, path: '/reports' },
   ];
 
   useEffect(() => {
@@ -93,7 +95,6 @@ const GlobalDock = ({ activeIndex, setActiveIndex }) => {
     }
   };
 
-  // Hide dock on Auth pages
   const hideDock = ['/', '/register'].includes(location.pathname);
   if (hideDock) return null;
 
@@ -119,12 +120,37 @@ const GlobalDock = ({ activeIndex, setActiveIndex }) => {
   );
 };
 
-// --- APP CONTENT GATEKEEPER ---
+// --- APP CONTENT ORCHESTRATOR ---
 const AppContent = () => {
   const location = useLocation();
   const [isLocked, setIsLocked] = useState(() => localStorage.getItem('security-enabled') === 'true');
   const [activeIndex, setActiveIndex] = useState(3);
 
+  // 1. BACKGROUND SYNC SERVICE
+  useEffect(() => {
+    const handleSync = async () => {
+      const queue = JSON.parse(localStorage.getItem('offline-queue') || '[]');
+      if (queue.length === 0) return;
+
+      console.log(`📡 Connection Restored: Syncing ${queue.length} items...`);
+      haptic.success();
+
+      for (const item of queue) {
+        try {
+          await API[item.method](item.url, item.data);
+        } catch (err) {
+          console.error("Sync Error for item:", item.id);
+        }
+      }
+      localStorage.removeItem('offline-queue');
+      console.log("✅ Pipeline Synced.");
+    };
+
+    window.addEventListener('online', handleSync);
+    return () => window.removeEventListener('online', handleSync);
+  }, []);
+
+  // 2. SECURITY GATEKEEPER
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && localStorage.getItem('security-enabled') === 'true') {
@@ -140,26 +166,22 @@ const AppContent = () => {
     setIsLocked(false);
   };
 
-  // Do not show lock on Login or Register pages
   const isAuthPage = ['/', '/register'].includes(location.pathname);
 
   return (
     <AnimatePresence mode="wait">
       {isLocked && !isAuthPage ? (
         <motion.div 
-          key="lock-screen"
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }} 
-          exit={{ opacity: 0 }}
+          key="lock"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="fixed inset-0 z-[9999]"
         >
           <LockScreen onUnlock={handleUnlock} />
         </motion.div>
       ) : (
         <motion.div 
-          key="app-content"
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }}
+          key="app"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           className="min-h-screen"
         >
           <ThemeOrchestrator />

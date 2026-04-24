@@ -1,24 +1,66 @@
 import axios from 'axios';
+import { haptic } from './haptics';
 
 const API = axios.create({
-  // Make sure this matches your backend port
   baseURL: 'https://money-app-back.onrender.com/api', 
 });
 
-// Request interceptor to attach the JWT token
+// Helper to manage the offline queue in localStorage
+const getQueue = () => JSON.parse(localStorage.getItem('offline-queue') || '[]');
+const saveQueue = (queue) => localStorage.setItem('offline-queue', JSON.stringify(queue));
+
+// REQUEST INTERCEPTOR: Attach Token
 API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-      // Must match the key your backend middleware expects
       config.headers['x-auth-token'] = token; 
     }
     return config;
   },
-  (error) => {
+  (error) => Promise.reject(error)
+);
+
+// RESPONSE INTERCEPTOR: Handle Offline Failures
+API.interceptors.response.use(
+  (response) => response, // If online, just pass the response through
+  async (error) => {
+    const { config, message } = error;
+
+    // Check if the error is due to no network connection
+    const isNetworkError = !navigator.onLine || message === 'Network Error';
+    
+    // We only want to queue data-writing requests (POST/PUT/DELETE)
+    const isWriteRequest = ['post', 'put', 'delete'].includes(config.method);
+
+    if (isNetworkError && isWriteRequest) {
+      haptic.medium(); // Vibrate to notify user of offline save
+      
+      const queue = getQueue();
+      const newItem = {
+        url: config.url,
+        method: config.method,
+        data: JSON.parse(config.data), // Store the transaction info
+        id: Date.now(),
+        timestamp: new Date().toISOString()
+      };
+
+      // Add to queue if not already there (prevent duplicates)
+      queue.push(newItem);
+      saveQueue(queue);
+
+      console.warn("🌐 System Offline: Transaction queued for sync.");
+      
+      // Return a "fake" successful response so the UI doesn't crash
+      return Promise.resolve({ 
+        data: newItem.data, 
+        status: 202, 
+        offline: true 
+      });
+    }
+
     return Promise.reject(error);
   }
 );
 
-// This is the line your Home.jsx is screaming for!
 export default API;
