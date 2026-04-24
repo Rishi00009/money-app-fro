@@ -7,24 +7,28 @@ const LockScreen = ({ onUnlock }) => {
   const [pin, setPin] = useState("");
   const [isError, setIsError] = useState(false);
   
-  // --- Dynamic Security Retrieval ---
-  // Pulls the PIN and Bio ID saved during the Settings setup phase
-  const SAVED_PIN = localStorage.getItem('user-pin') || "1234"; 
-  const SAVED_BIO_ID = localStorage.getItem('biometric-credential-id');
+  // Fallback to default if localStorage fails or is empty
+  const getSavedPin = () => {
+    try {
+      return localStorage.getItem('user-pin') || "1234";
+    } catch (e) {
+      return "1234";
+    }
+  };
 
   const handleInput = (num) => {
     if (pin.length >= 4 || isError) return;
     
     const newPin = pin + num;
     setPin(newPin);
-    haptic.light();
+    if (haptic?.light) haptic.light();
 
     if (newPin.length === 4) {
-      if (newPin === SAVED_PIN) {
-        haptic.success();
+      if (newPin === getSavedPin()) {
+        if (haptic?.success) haptic.success();
         setTimeout(() => onUnlock(), 300);
       } else {
-        haptic.heavy();
+        if (haptic?.heavy) haptic.heavy();
         setIsError(true);
         setTimeout(() => {
           setPin("");
@@ -34,59 +38,56 @@ const LockScreen = ({ onUnlock }) => {
     }
   };
 
-  // --- SECURE BIOMETRIC VERIFICATION ---
   const handleBiometricAuth = async () => {
-    haptic.medium();
+    if (haptic?.medium) haptic.medium();
 
-    if (!SAVED_BIO_ID) {
-      alert("Biometric setup required in Settings.");
+    // Check for Credential support safely
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      alert("Biometrics not supported on this browser.");
+      return;
+    }
+
+    const savedBioId = localStorage.getItem('biometric-credential-id');
+    if (!savedBioId) {
+      alert("Setup biometrics in Settings first.");
       return;
     }
 
     try {
-      // 1. Convert the Base64 saved ID back to a Uint8Array
-      const rawId = Uint8Array.from(atob(SAVED_BIO_ID), c => c.charCodeAt(0));
-      
-      // 2. Generate a random challenge
+      const rawId = Uint8Array.from(atob(savedBioId), c => c.charCodeAt(0));
       const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
+      if (window.crypto) window.crypto.getRandomValues(challenge);
 
       const authOptions = {
         publicKey: {
           challenge: challenge,
-          allowCredentials: [{
-            id: rawId,
-            type: 'public-key',
-          }],
-          userVerification: "required", // Forces Fingerprint/FaceID prompt
+          allowCredentials: [{ id: rawId, type: 'public-key' }],
+          userVerification: "required",
           timeout: 60000,
         }
       };
 
-      // 3. Request verification from the OS
       const assertion = await navigator.credentials.get(authOptions);
 
       if (assertion) {
-        haptic.success();
+        if (haptic?.success) haptic.success();
         onUnlock();
       }
     } catch (err) {
-      console.error("Biometric Auth Failed:", err);
-      haptic.heavy();
+      console.error(err);
+      if (haptic?.heavy) haptic.heavy();
       setIsError(true);
       setTimeout(() => setIsError(false), 500);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-6 transition-colors duration-500" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-6 bg-black" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         className="w-full max-w-xs flex flex-col items-center"
       >
-        {/* LOGO AREA */}
         <motion.div 
           animate={isError ? { x: [-10, 10, -10, 10, 0] } : {}}
           className="w-20 h-20 rounded-[2rem] bg-[var(--bg-secondary)] flex items-center justify-center mb-8 border border-white/5 shadow-2xl"
@@ -94,39 +95,30 @@ const LockScreen = ({ onUnlock }) => {
           <ShieldCheck size={40} className={isError ? "text-rose-500" : "text-[var(--brand-color)]"} />
         </motion.div>
 
-        <h2 className="text-2xl font-black uppercase tracking-tighter mb-2" style={{ color: 'var(--text-main)' }}>
-          {isError ? "Access Denied" : "Secure Entry"}
+        <h2 className="text-2xl font-black uppercase tracking-tighter mb-12" style={{ color: 'var(--text-main)' }}>
+          {isError ? "Denied" : "Security Shield"}
         </h2>
-        <p className="text-[10px] opacity-40 uppercase font-black tracking-[0.3em] mb-12" style={{ color: 'var(--text-main)' }}>
-          {isError ? "Invalid Protocol" : "Authorization Required"}
-        </p>
 
-        {/* PIN INDICATORS */}
         <div className="flex gap-6 mb-16">
           {[0, 1, 2, 3].map((i) => (
-            <motion.div 
-              key={i}
-              animate={{ 
-                scale: pin.length > i ? 1.2 : 1,
-                backgroundColor: isError ? '#f43f5e' : (pin.length > i ? 'var(--brand-color)' : 'rgba(128,128,128,0.2)')
-              }}
-              className="w-4 h-4 rounded-full border border-white/5 transition-colors"
+            <div 
+              key={i} 
+              className="w-4 h-4 rounded-full border border-white/10 transition-all duration-200"
+              style={{ backgroundColor: pin.length > i ? 'var(--brand-color)' : 'transparent', transform: pin.length > i ? 'scale(1.2)' : 'scale(1)' }}
             />
           ))}
         </div>
 
-        {/* NUMPAD */}
-        <div className="grid grid-cols-3 gap-8">
+        <div className="grid grid-cols-3 gap-8 mb-12">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, "", 0, "back"].map((btn, i) => (
             <button
               key={i}
-              disabled={isError}
               onClick={() => {
                 if (btn === "back") setPin(pin.slice(0, -1));
                 else if (btn !== "") handleInput(btn);
               }}
               className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-black transition-all active:scale-90 
-                ${btn === "" ? "opacity-0 pointer-events-none" : "bg-[var(--bg-secondary)] border border-white/5 shadow-lg active:bg-[var(--brand-color)] active:text-[var(--bg-primary)]"}`}
+                ${btn === "" ? "opacity-0 pointer-events-none" : "bg-[var(--bg-secondary)] border border-white/5 shadow-lg"}`}
               style={{ color: 'var(--text-main)' }}
             >
               {btn === "back" ? "←" : btn}
@@ -134,22 +126,15 @@ const LockScreen = ({ onUnlock }) => {
           ))}
         </div>
 
-        {/* BIOMETRIC BUTTON - Only visible/active if setup was completed */}
-        <AnimatePresence>
-          {SAVED_BIO_ID && (
-            <motion.button 
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleBiometricAuth}
-              className="mt-12 p-4 rounded-full bg-[var(--bg-secondary)] border border-white/5 shadow-xl" 
-              style={{ color: 'var(--brand-color)' }}
-            >
-              <Fingerprint size={40} />
-            </motion.button>
-          )}
-        </AnimatePresence>
+        {localStorage.getItem('biometric-credential-id') && (
+          <button 
+            onClick={handleBiometricAuth}
+            className="p-4 rounded-full bg-[var(--bg-secondary)] border border-white/5 shadow-xl"
+            style={{ color: 'var(--brand-color)' }}
+          >
+            <Fingerprint size={40} />
+          </button>
+        )}
       </motion.div>
     </div>
   );
